@@ -6,6 +6,7 @@ import javafx.scene.Scene;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.Separator;
+import javafx.scene.control.Tooltip;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.layout.BorderPane;
@@ -45,6 +46,12 @@ public class LoginView {
         
         Label emailLabel = new Label("SELECCIONAR ROL");
         emailLabel.setStyle("-fx-font-size: 11; -fx-font-weight: bold; -fx-text-fill: #38bdf8; -fx-font-family: 'Segoe UI';");
+
+        Button btnClose = new Button("Cerrar sistema");
+        btnClose.setPrefHeight(44);
+        btnClose.setPrefWidth(164);
+        btnClose.setStyle(buttonStyle("#7f1d1d", "#f87171", "#ffffff"));
+        btnClose.setTooltip(new Tooltip("Salir de la aplicación"));
         
         Button btnAdmin = new Button("📊  PANEL ADMINISTRATIVO");
         btnAdmin.setPrefWidth(320);
@@ -89,7 +96,7 @@ public class LoginView {
             "-fx-cursor: hand;"
         ));
         btnAdmin.setOnAction(e -> {
-            AdminView adminView = new AdminView();
+            AdminView adminView = new AdminView(stage);
             Scene scene = new Scene(adminView.getView(), 1280, 860);
             Theme.apply(scene);
             stage.setScene(scene);
@@ -148,7 +155,9 @@ public class LoginView {
             stage.setFullScreen(true);
         });
 
-        VBox buttonBox = new VBox(12, btnAdmin, btnPlayer);
+        btnClose.setOnAction(e -> stage.close());
+
+        VBox buttonBox = new VBox(12, btnAdmin, btnPlayer, btnClose);
         
         sidebar.getChildren().addAll(logo, title, description, sep1, emailLabel, buttonBox);
         VBox.setVgrow(sidebar, Priority.ALWAYS);
@@ -168,6 +177,20 @@ public class LoginView {
         mainContainer.setStyle("-fx-background-color: #040814;");
         
         view.setCenter(mainContainer);
+    }
+
+    private String buttonStyle(String background, String border, String text) {
+        return "-fx-font-size: 12; " +
+                "-fx-font-weight: bold; " +
+                "-fx-padding: 12; " +
+                "-fx-background-color: " + background + "; " +
+                "-fx-text-fill: " + text + "; " +
+                "-fx-border-color: " + border + "; " +
+                "-fx-border-width: 2; " +
+                "-fx-border-radius: 6; " +
+                "-fx-background-radius: 6; " +
+                "-fx-font-family: 'Segoe UI'; " +
+                "-fx-cursor: hand;";
     }
 
     public BorderPane getView() {
