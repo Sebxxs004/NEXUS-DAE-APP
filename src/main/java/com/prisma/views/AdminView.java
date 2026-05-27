@@ -1,8 +1,22 @@
 package com.prisma.views;
 
-import java.util.Arrays;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
-import java.util.stream.Collectors;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
+import org.apache.pdfbox.pdmodel.PDDocument;
+import org.apache.pdfbox.pdmodel.PDPage;
+import org.apache.pdfbox.pdmodel.PDPageContentStream;
+import org.apache.pdfbox.pdmodel.common.PDRectangle;
+import org.apache.pdfbox.pdmodel.font.PDType1Font;
 
 import com.prisma.data.CasoRepository;
 import com.prisma.models.Caso;
@@ -12,24 +26,23 @@ import javafx.geometry.Insets;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
 import javafx.scene.control.ButtonType;
-import javafx.scene.control.Control;
-import javafx.scene.control.DatePicker;
 import javafx.scene.control.Label;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.control.TextArea;
-import javafx.scene.control.TextField;
 import javafx.scene.layout.BorderPane;
-import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
+import javafx.stage.Stage;
 
 public class AdminView {
+    private final Stage stage;
     private BorderPane view;
     private VBox casosCardsContainer;
     private TextArea detalleArea;
 
-    public AdminView() {
+    public AdminView(Stage stage) {
+        this.stage = stage;
         view = new BorderPane();
         view.getStyleClass().add("app-shell");
         view.setPadding(new Insets(26));
@@ -38,44 +51,20 @@ public class AdminView {
         mainCard.getStyleClass().add("panel-card");
         mainCard.setPadding(new Insets(24));
 
-        Label title = new Label("Panel Admin · Crear caso");
+        Label title = new Label("Panel Admin");
         title.getStyleClass().add("app-title");
 
-        Label subtitle = new Label("Registra víctimas, victimarios, delitos y actores para alimentar el tablero del fiscal.");
+        Label subtitle = new Label("Consulta los casos cargados, genera el PDF simulado y cierra la sesión cuando termines.");
         subtitle.getStyleClass().add("app-subtitle");
         subtitle.setWrapText(true);
 
-        GridPane form = new GridPane();
-        form.setHgap(14);
-        form.setVgap(14);
+        Button btnSimulatePdf = new Button("Generar PDF simulado");
+        btnSimulatePdf.getStyleClass().add("secondary-button");
 
-        TextField nombreField = createField("Ej. Caso Aurora");
-        TextArea descripcionField = createTextArea("Resumen de los hechos...");
-        TextField lugarField = createField("Ciudad / provincia");
-        DatePicker fechaField = new DatePicker();
-        fechaField.getStyleClass().add("date-picker");
-        fechaField.setPrefWidth(320);
-        TextArea victimasField = createTextArea("María López, ...");
-        TextArea victimariosField = createTextArea("Sujeto A, ...");
-        TextArea delitosField = createTextArea("Fraude procesal, ...");
-        TextArea actoresField = createTextArea("Fiscalía, Policía Judicial, ...");
+        Button btnLogout = new Button("Cerrar sesión");
+        btnLogout.getStyleClass().add("danger-button");
 
-        addRow(form, 0, "Nombre del caso", nombreField);
-        addRow(form, 1, "Descripción", descripcionField);
-        addRow(form, 2, "Lugar", lugarField);
-        addRow(form, 3, "Fecha de hechos", fechaField);
-        addRow(form, 4, "Víctimas", victimasField);
-        addRow(form, 5, "Victimarios", victimariosField);
-        addRow(form, 6, "Delitos", delitosField);
-        addRow(form, 7, "Actores involucrados", actoresField);
-
-        Button btnSave = new Button("Guardar caso");
-        btnSave.getStyleClass().add("primary-button");
-
-        Button btnClear = new Button("Limpiar");
-        btnClear.getStyleClass().add("ghost-button");
-
-        HBox actions = new HBox(12, btnSave, btnClear);
+        HBox actions = new HBox(12, btnSimulatePdf, btnLogout);
 
         Label listTitle = new Label("Casos cargados");
         listTitle.getStyleClass().add("section-title");
@@ -112,48 +101,25 @@ public class AdminView {
         CasoRepository.getCasos().addListener((ListChangeListener<Caso>) change -> refreshList());
         refreshCaseCards();
 
-        btnSave.setOnAction(e -> {
-            if (nombreField.getText().isBlank() || descripcionField.getText().isBlank() || lugarField.getText().isBlank() || fechaField.getValue() == null) {
-                showAlert(Alert.AlertType.WARNING, "Completa nombre, descripción, lugar y fecha.");
-                return;
+        btnSimulatePdf.setOnAction(e -> {
+            try {
+                Path out = generateSimulatedPdf();
+                showAlert(Alert.AlertType.INFORMATION, "PDF simulado generado en: " + out.toString());
+            } catch (IOException ex) {
+                showAlert(Alert.AlertType.ERROR, "Error generando PDF: " + ex.getMessage());
             }
-
-            Caso caso = new Caso(
-                    nombreField.getText().trim(),
-                    descripcionField.getText().trim(),
-                    lugarField.getText().trim(),
-                    fechaField.getValue(),
-                    parseCsv(victimasField.getText()),
-                    parseCsv(victimariosField.getText()),
-                    parseCsv(delitosField.getText()),
-                    parseCsv(actoresField.getText())
-            );
-
-            CasoRepository.addCaso(caso);
-            showAlert(Alert.AlertType.INFORMATION, "Caso agregado al repositorio. El tablero del fiscal lo tomará desde el catálogo de casos.");
-            nombreField.clear();
-            descripcionField.clear();
-            lugarField.clear();
-            fechaField.setValue(null);
-            victimasField.clear();
-            victimariosField.clear();
-            delitosField.clear();
-            actoresField.clear();
-            refreshCaseCards();
         });
 
-        btnClear.setOnAction(e -> {
-            nombreField.clear();
-            descripcionField.clear();
-            lugarField.clear();
-            fechaField.setValue(null);
-            victimasField.clear();
-            victimariosField.clear();
-            delitosField.clear();
-            actoresField.clear();
+        btnLogout.setOnAction(e -> {
+            LoginView loginView = new LoginView(stage);
+            javafx.scene.Scene scene = new javafx.scene.Scene(loginView.getView(), 980, 680);
+            com.prisma.ui.Theme.apply(scene);
+            stage.setScene(scene);
+            stage.setMaximized(true);
+            stage.setFullScreen(true);
         });
 
-        mainCard.getChildren().addAll(title, subtitle, form, actions);
+        mainCard.getChildren().addAll(title, subtitle, actions);
 
         VBox rightCard = new VBox(14, listTitle, casosScrollPane);
         rightCard.getStyleClass().add("sidebar-card");
@@ -168,38 +134,6 @@ public class AdminView {
         view.setRight(rightContainer);
     }
 
-    private TextField createField(String prompt) {
-        TextField field = new TextField();
-        field.getStyleClass().add("input-field");
-        field.setPromptText(prompt);
-        return field;
-    }
-
-    private TextArea createTextArea(String prompt) {
-        TextArea area = new TextArea();
-        area.getStyleClass().add("text-area");
-        area.setPromptText(prompt);
-        area.setPrefRowCount(3);
-        return area;
-    }
-
-    private void addRow(GridPane form, int rowIndex, String label, Control control) {
-        Label fieldLabel = new Label(label);
-        fieldLabel.getStyleClass().add("muted-text");
-        form.add(fieldLabel, 0, rowIndex);
-        form.add(control, 1, rowIndex);
-    }
-
-    private List<String> parseCsv(String text) {
-        if (text == null || text.isBlank()) {
-            return List.of("Sin dato");
-        }
-        return Arrays.stream(text.split(","))
-                .map(String::trim)
-                .filter(value -> !value.isBlank())
-                .collect(Collectors.toList());
-    }
-
     private void refreshList() {
         refreshCaseCards();
     }
@@ -207,11 +141,171 @@ public class AdminView {
     private void refreshCaseCards() {
         casosCardsContainer.getChildren().setAll(CasoRepository.getCasos().stream()
                 .map(this::buildCaseCard)
-                .collect(Collectors.toList()));
+                .toList());
+    }
 
-        if (!CasoRepository.getCasos().isEmpty() && detalleArea.getText().isBlank()) {
-            detalleArea.setText(buildCaseDetails(CasoRepository.getCasos().get(0)));
+    private Path generateSimulatedPdf() throws IOException {
+        Path downloads = Paths.get(System.getProperty("user.home"), "Downloads");
+        Files.createDirectories(downloads);
+        String timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss"));
+        Path output = downloads.resolve("prisma-simulado-" + timestamp + ".pdf");
+
+        // Try to locate latest investigation snapshot JSON in Documents/PRISMA
+        Path snapshotsDir = Paths.get(System.getProperty("user.home"), "Documents", "PRISMA");
+        Path latestSnapshot = null;
+        if (Files.exists(snapshotsDir) && Files.isDirectory(snapshotsDir)) {
+            latestSnapshot = Files.list(snapshotsDir)
+                    .filter(p -> p.getFileName().toString().startsWith("investigacion-") && p.getFileName().toString().endsWith(".json"))
+                    .max(Comparator.comparingLong(p -> {
+                        try {
+                            return Files.getLastModifiedTime(p).toMillis();
+                        } catch (IOException ex) {
+                            return 0L;
+                        }
+                    })).orElse(null);
         }
+
+        // Parsed data holders
+        List<String[]> parsedConnections = new ArrayList<>(); // {from,to,detail}
+        List<String[]> parsedGroups = new ArrayList<>(); // {name,reason,membersCSV}
+        List<String[]> parsedIsolated = new ArrayList<>(); // {name,reason}
+
+        if (latestSnapshot != null) {
+            String json = Files.readString(latestSnapshot);
+
+            // connections
+            Pattern pConn = Pattern.compile("\\\"from\\\"\\s*:\\s*\\\"(.*?)\\\".*?\\\"to\\\"\\s*:\\s*\\\"(.*?)\\\".*?\\\"detail\\\"\\s*:\\s*\\\"(.*?)\\\"", Pattern.DOTALL);
+            Matcher mConn = pConn.matcher(json);
+            while (mConn.find()) {
+                parsedConnections.add(new String[]{unescapeJson(mConn.group(1)), unescapeJson(mConn.group(2)), unescapeJson(mConn.group(3))});
+            }
+
+            // groups
+            Pattern pGroup = Pattern.compile("\\\"name\\\"\\s*:\\s*\\\"(.*?)\\\".*?\\\"reason\\\"\\s*:\\s*\\\"(.*?)\\\".*?\\\"members\\\"\\s*:\\s*\\[(.*?)\\]", Pattern.DOTALL);
+            Matcher mGroup = pGroup.matcher(json);
+            while (mGroup.find()) {
+                String name = unescapeJson(mGroup.group(1));
+                String reason = unescapeJson(mGroup.group(2));
+                String membersRaw = mGroup.group(3);
+                // extract quoted members
+                Pattern pMember = Pattern.compile("\"(.*?)\"");
+                Matcher mMember = pMember.matcher(membersRaw);
+                List<String> members = new ArrayList<>();
+                while (mMember.find()) {
+                    members.add(unescapeJson(mMember.group(1)));
+                }
+                String membersCsv = String.join(", ", members);
+                parsedGroups.add(new String[]{name, reason, membersCsv});
+            }
+
+            // isolated nodes
+            Pattern pIso = Pattern.compile("\\\"isolatedNodes\\\"\\s*:\\s*\\[([\\s\\S]*?)\\]", Pattern.DOTALL);
+            Matcher mIsoBlock = pIso.matcher(json);
+            if (mIsoBlock.find()) {
+                String block = mIsoBlock.group(1);
+                Pattern pIsoItem = Pattern.compile("\\\"name\\\"\\s*:\\s*\\\"(.*?)\\\".*?\\\"reason\\\"\\s*:\\s*\\\"(.*?)\\\"", Pattern.DOTALL);
+                Matcher mIsoItem = pIsoItem.matcher(block);
+                while (mIsoItem.find()) {
+                    parsedIsolated.add(new String[]{unescapeJson(mIsoItem.group(1)), unescapeJson(mIsoItem.group(2))});
+                }
+            }
+        }
+
+        try (PDDocument document = new PDDocument()) {
+            PDPage page = new PDPage(PDRectangle.LETTER);
+            document.addPage(page);
+
+            float margin = 50;
+            float y = page.getMediaBox().getHeight() - margin;
+
+            try (PDPageContentStream content = new PDPageContentStream(document, page)) {
+                y = writePdfLine(content, page, y, 16, "PRISMA DAE - Reporte de Investigación (Simulado)", true);
+                y = writePdfLine(content, page, y, 11, "Generado: " + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")), false);
+                y = writePdfLine(content, page, y, 11, "Fuente: " + (latestSnapshot == null ? "Catalogo de casos" : latestSnapshot.getFileName().toString()), false);
+                y = writePdfLine(content, page, y, 11, "", false);
+
+                y = writePdfLine(content, page, y, 13, "Conexiones registradas", true);
+                if (parsedConnections.isEmpty()) {
+                    y = writePdfWrappedLine(content, page, y, 11, "- No hay conexiones registradas (último snapshot no disponible o vacío).");
+                } else {
+                    int idx = 1;
+                    for (String[] conn : parsedConnections) {
+                        String line = idx + ". " + conn[0] + " <-> " + conn[1] + " | " + conn[2];
+                        y = writePdfWrappedLine(content, page, y, 11, line);
+                        idx++;
+                    }
+                }
+
+                y = writePdfLine(content, page, y, 11, "", false);
+                y = writePdfLine(content, page, y, 13, "Grupos y justificaciones", true);
+                if (parsedGroups.isEmpty()) {
+                    y = writePdfWrappedLine(content, page, y, 11, "- No hay grupos detectados (último snapshot no disponible o vacío).\n\n");
+                } else {
+                    int idx = 1;
+                    for (String[] grp : parsedGroups) {
+                        y = writePdfWrappedLine(content, page, y, 11, idx + ". " + grp[0] + " (miembros: " + grp[2] + ")");
+                        y = writePdfWrappedLine(content, page, y, 11, "   Justificación: " + grp[1]);
+                        idx++;
+                    }
+                }
+
+                y = writePdfLine(content, page, y, 11, "", false);
+                y = writePdfLine(content, page, y, 13, "Casos aislados", true);
+                if (parsedIsolated.isEmpty()) {
+                    y = writePdfWrappedLine(content, page, y, 11, "- No hay casos aislados (último snapshot no disponible o vacío).\n\n");
+                } else {
+                    int idx = 1;
+                    for (String[] iso : parsedIsolated) {
+                        y = writePdfWrappedLine(content, page, y, 11, idx + ". " + iso[0] + " - Justificación: " + iso[1]);
+                        idx++;
+                    }
+                }
+            }
+
+            document.save(output.toFile());
+        }
+
+        return output;
+    }
+
+    // Reuse small helpers from PlayerView: simple PDF helpers
+    private float writePdfLine(PDPageContentStream content, PDPage page, float y, int fontSize, String text, boolean bold)
+            throws IOException {
+        float left = 52;
+        if (y < 60) {
+            return y;
+        }
+        content.beginText();
+        content.setFont(bold ? PDType1Font.HELVETICA_BOLD : PDType1Font.HELVETICA, fontSize);
+        content.newLineAtOffset(left, y);
+        content.showText(text == null ? "" : text);
+        content.endText();
+        return y - (fontSize + 6);
+    }
+
+    private float writePdfWrappedLine(PDPageContentStream content, PDPage page, float y, int fontSize, String text)
+            throws IOException {
+        String value = text == null ? "" : text;
+        int maxChars = 100;
+        int cursor = 0;
+        while (cursor < value.length()) {
+            int end = Math.min(value.length(), cursor + maxChars);
+            String chunk = value.substring(cursor, end);
+            y = writePdfLine(content, page, y, fontSize, chunk, false);
+            cursor = end;
+        }
+        if (value.isEmpty()) {
+            y = writePdfLine(content, page, y, fontSize, "", false);
+        }
+        return y;
+    }
+
+    private String unescapeJson(String s) {
+        if (s == null) return "";
+        return s.replaceAll("\\\\", "\\")
+                .replaceAll("\\\"", "\"")
+                .replaceAll("\\n", "\n")
+                .replaceAll("\\r", "");
     }
 
     private VBox buildCaseCard(Caso caso) {
@@ -227,24 +321,11 @@ public class AdminView {
 
         Button detailButton = new Button("Ver detalles");
         detailButton.getStyleClass().add("secondary-button");
-        detailButton.setOnAction(e -> detalleArea.setText(buildCaseDetails(caso)));
 
         VBox card = new VBox(10, cardTitle, cardMeta, cardSummary, detailButton);
         card.getStyleClass().add("panel-card");
         card.setPadding(new Insets(14));
-        card.setOnMouseClicked(e -> detalleArea.setText(buildCaseDetails(caso)));
         return card;
-    }
-
-    private String buildCaseDetails(Caso caso) {
-        return "📋 " + caso.getNombre() + "\n\n"
-                + "📍 Lugar: " + caso.getLugar() + "\n"
-                + "📅 Fecha: " + caso.getFechaHechosFormateada() + "\n\n"
-                + "📝 Descripción:\n" + caso.getDescripcion() + "\n\n"
-                + "👥 Víctimas:\n" + String.join("\n", caso.getVictimas()) + "\n\n"
-                + "⚖️ Victimarios:\n" + String.join("\n", caso.getVictimarios()) + "\n\n"
-                + "⚔️ Delitos:\n" + String.join("\n", caso.getDelitos()) + "\n\n"
-                + "🏛️ Actores Involucrados:\n" + String.join("\n", caso.getActoresInvolucrados()) + "\n";
     }
 
     private void showAlert(Alert.AlertType type, String message) {

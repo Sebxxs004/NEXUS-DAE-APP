@@ -14,7 +14,9 @@ public class Caso {
     private List<String> victimarios;
     private List<String> delitos;
     private List<String> actoresInvolucrados;
+    private String imagenPath;
 
+    /** Constructor completo para casos con todos los metadatos. */
     public Caso(String nombre, String descripcion, String lugar, LocalDate fechaHechos,
                 List<String> victimas, List<String> victimarios, List<String> delitos,
                 List<String> actoresInvolucrados) {
@@ -26,6 +28,20 @@ public class Caso {
         this.victimarios = new ArrayList<>(victimarios);
         this.delitos = new ArrayList<>(delitos);
         this.actoresInvolucrados = new ArrayList<>(actoresInvolucrados);
+        this.imagenPath = null;
+    }
+
+    /** Constructor simplificado para casos generados desde la carpeta casos/. */
+    public Caso(String nombre, String imagenPath) {
+        this.nombre = nombre;
+        this.imagenPath = imagenPath;
+        this.descripcion = "Caso cargado desde imagen.";
+        this.lugar = "Sin especificar";
+        this.fechaHechos = LocalDate.now();
+        this.victimas = new ArrayList<>();
+        this.victimarios = new ArrayList<>();
+        this.delitos = new ArrayList<>();
+        this.actoresInvolucrados = new ArrayList<>();
     }
 
     public String getNombre() { return nombre; }
@@ -44,6 +60,9 @@ public class Caso {
     public void setDelitos(List<String> delitos) { this.delitos = new ArrayList<>(delitos); }
     public List<String> getActoresInvolucrados() { return actoresInvolucrados; }
     public void setActoresInvolucrados(List<String> actoresInvolucrados) { this.actoresInvolucrados = new ArrayList<>(actoresInvolucrados); }
+    public String getImagenPath() { return imagenPath; }
+    public void setImagenPath(String imagenPath) { this.imagenPath = imagenPath; }
+    public boolean tieneImagen() { return imagenPath != null && !imagenPath.isBlank(); }
 
     public String getFechaHechosFormateada() {
         return fechaHechos != null ? fechaHechos.format(DateTimeFormatter.ofPattern("dd/MM/yyyy")) : "Sin fecha";
