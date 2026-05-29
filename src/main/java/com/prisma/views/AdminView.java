@@ -111,6 +111,7 @@ public class AdminView {
         });
 
         btnLogout.setOnAction(e -> {
+            DistractionAlertManager.stopMonitoring();
             LoginView loginView = new LoginView(stage);
             javafx.scene.Scene scene = new javafx.scene.Scene(loginView.getView(), 980, 680);
             com.prisma.ui.Theme.apply(scene);
@@ -169,6 +170,7 @@ public class AdminView {
         List<String[]> parsedConnections = new ArrayList<>(); // {from,to,detail}
         List<String[]> parsedGroups = new ArrayList<>(); // {name,reason,membersCSV}
         List<String[]> parsedIsolated = new ArrayList<>(); // {name,reason}
+        List<String[]> parsedAlerts = new ArrayList<>(); // {timestamp,image,status,response}
 
         if (latestSnapshot != null) {
             String json = Files.readString(latestSnapshot);
@@ -207,6 +209,23 @@ public class AdminView {
                 Matcher mIsoItem = pIsoItem.matcher(block);
                 while (mIsoItem.find()) {
                     parsedIsolated.add(new String[]{unescapeJson(mIsoItem.group(1)), unescapeJson(mIsoItem.group(2))});
+                }
+            }
+
+            // alerts
+            Pattern pAlerts = Pattern.compile("\\\"alerts\\\"\\s*:\\s*\\[(.*?)\\]", Pattern.DOTALL);
+            Matcher mAlerts = pAlerts.matcher(json);
+            if (mAlerts.find()) {
+                String alertsBlock = mAlerts.group(1);
+                Pattern pAlertItem = Pattern.compile("\\{\\s*\\\"timestamp\\\"\\s*:\\s*\\\"(.*?)\\\"\\s*,\\s*\\\"image\\\"\\s*:\\s*\\\"(.*?)\\\"\\s*,\\s*\\\"status\\\"\\s*:\\s*\\\"(.*?)\\\"\\s*,\\s*\\\"response\\\"\\s*:\\s*\\\"(.*?)\\\"\\s*\\}", Pattern.DOTALL);
+                Matcher mAlertItem = pAlertItem.matcher(alertsBlock);
+                while (mAlertItem.find()) {
+                    parsedAlerts.add(new String[]{
+                        unescapeJson(mAlertItem.group(1)),
+                        unescapeJson(mAlertItem.group(2)),
+                        unescapeJson(mAlertItem.group(3)),
+                        unescapeJson(mAlertItem.group(4))
+                    });
                 }
             }
         }
@@ -257,6 +276,21 @@ public class AdminView {
                     int idx = 1;
                     for (String[] iso : parsedIsolated) {
                         y = writePdfWrappedLine(content, page, y, 11, idx + ". " + iso[0] + " - Justificación: " + iso[1]);
+                        idx++;
+                    }
+                }
+
+                y = writePdfLine(content, page, y, 11, "", false);
+                y = writePdfLine(content, page, y, 13, "Alertas distractivas", true);
+                if (parsedAlerts.isEmpty()) {
+                    y = writePdfWrappedLine(content, page, y, 11, "- No hay alertas distractivas registradas.");
+                } else {
+                    int idx = 1;
+                    for (String[] alert : parsedAlerts) {
+                        y = writePdfWrappedLine(content, page, y, 11, idx + ". " + alert[0] + " | Imagen: " + alert[1] + " | Estado: " + alert[2]);
+                        if (!alert[3].isBlank()) {
+                            y = writePdfWrappedLine(content, page, y, 11, "   Respuesta: " + alert[3]);
+                        }
                         idx++;
                     }
                 }

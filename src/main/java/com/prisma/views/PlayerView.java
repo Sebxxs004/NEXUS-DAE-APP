@@ -49,9 +49,9 @@ import javafx.scene.control.Label;
 import javafx.scene.control.ListView;
 import javafx.scene.control.ProgressIndicator;
 import javafx.scene.control.ScrollPane;
-import javafx.scene.control.TextInputDialog;
 import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
+import javafx.scene.control.TextInputDialog;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.input.ScrollEvent;
@@ -120,6 +120,7 @@ public class PlayerView {
     private final ScrollPane groupScrollPane;
     private final ColorPicker groupColorPicker;
     private final TextArea groupReasonField;
+    private final Label totalNodesLabel;
     private final Label ungroupedNodesLabel;
     private final Label groupSummaryLabel;
     private final Label statusLabel;
@@ -234,7 +235,7 @@ public class PlayerView {
         investigationSessionId = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss"));
         investigationSnapshotPath = Paths.get(System.getProperty("user.home"), "Documents", "PRISMA", "investigacion-" + investigationSessionId + ".json");
 
-        timerLabel = new Label(formatDuration(INVESTIGATION_DURATION));
+        timerLabel = new Label("TIEMPO " + formatDuration(INVESTIGATION_DURATION));
         timerLabel.getStyleClass().add("timer-pill");
         sessionLabel = new Label("Sesión: FISCAL");
         sessionLabel.getStyleClass().add("session-pill");
@@ -246,6 +247,7 @@ public class PlayerView {
         Button logoutButton = new Button("Cerrar sesión");
         logoutButton.getStyleClass().add("danger-button");
         logoutButton.setOnAction(e -> {
+            DistractionAlertManager.stopMonitoring();
             LoginView loginView = new LoginView(stage);
             Scene scene = new Scene(loginView.getView(), 980, 680);
             Theme.apply(scene);
@@ -282,6 +284,13 @@ public class PlayerView {
         boardClip.heightProperty().bind(board.heightProperty());
         board.setClip(boardClip);
 
+        Image boardBackgroundImage = new Image(getClass().getResourceAsStream("/styles/assets/tablero-analitico.jpeg"));
+        ImageView boardBackgroundView = new ImageView(boardBackgroundImage);
+        boardBackgroundView.setPreserveRatio(false);
+        boardBackgroundView.fitWidthProperty().bind(board.widthProperty());
+        boardBackgroundView.fitHeightProperty().bind(board.heightProperty());
+        boardBackgroundView.setMouseTransparent(true);
+
         groupLayer = new Pane();
         groupLayer.setMouseTransparent(true);
         connectionLayer = new Pane();
@@ -291,13 +300,13 @@ public class PlayerView {
         contentContainer = new Group();
         contentContainer.getChildren().addAll(groupLayer, connectionLayer, nodeLayer);
 
-        board.getChildren().add(contentContainer);
+        board.getChildren().addAll(boardBackgroundView, contentContainer);
 
         VBox boardWrapper = new VBox(12);
         boardWrapper.setPadding(new Insets(0, 16, 0, 0));
         Label boardTitle = new Label("Casos en movimiento");
         boardTitle.getStyleClass().add("section-title");
-        statusLabel = new Label("Selecciona dos nodos para conectarlos.");
+        statusLabel = new Label("Selecciona dos casos para conectarlos.");
         statusLabel.getStyleClass().add("app-subtitle");
         statusLabel.setWrapText(true);
         HBox boardHeader = new HBox(12, boardTitle, statusLabel);
@@ -327,7 +336,7 @@ public class PlayerView {
             interactionModeButton.setText(handMode ? "Modo: Mano" : "Modo: Selección");
             statusLabel.setText(handMode
                     ? "Modo mano activo: arrastra para mover el tablero."
-                    : "Modo selección activo: selecciona dos nodos para conectarlos.");
+                    : "Modo selección activo: selecciona dos casos para conectarlos.");
         });
 
         HBox zoomControls = new HBox(8, interactionModeButton, zoomOutButton, zoomResetButton, zoomInButton);
@@ -362,8 +371,13 @@ public class PlayerView {
         groupScrollPane.setFitToWidth(true);
         groupScrollPane.setPrefViewportHeight(360);
 
-        ungroupedNodesLabel = new Label("Nodos sin grupo: 0");
-        ungroupedNodesLabel.getStyleClass().add("app-subtitle");
+        totalNodesLabel = new Label("Casos totales: 0");
+        totalNodesLabel.getStyleClass().add("node-stat-pill");
+        totalNodesLabel.getStyleClass().add("node-stat-pill-total");
+
+        ungroupedNodesLabel = new Label("Casos sin grupo: 0");
+        ungroupedNodesLabel.getStyleClass().add("node-stat-pill");
+        ungroupedNodesLabel.getStyleClass().add("node-stat-pill-alert");
         ungroupedNodesLabel.setWrapText(true);
 
         groupSummaryLabel = new Label("Selecciona un grupo para ver sus casos conectados.");
@@ -393,7 +407,9 @@ public class PlayerView {
         groupsCard.setPadding(new Insets(14));
         VBox.setVgrow(groupScrollPane, javafx.scene.layout.Priority.ALWAYS);
 
-        VBox groupsHeader = new VBox(4, new Label("Grupos detectados"), ungroupedNodesLabel);
+        HBox statsRow = new HBox(10, totalNodesLabel, ungroupedNodesLabel);
+        statsRow.setFillHeight(true);
+        VBox groupsHeader = new VBox(8, new Label("Grupos detectados"), statsRow);
         groupsHeader.getChildren().get(0).getStyleClass().add("section-title");
 
         groupsCard.getChildren().setAll(groupsHeader, groupScrollPane, refreshButton);
@@ -597,10 +613,10 @@ public class PlayerView {
         pdfLoadingOverlay.setAlignment(Pos.CENTER);
         StackPane.setAlignment(generatingCard, Pos.CENTER);
 
-        Label isolatedNodesTitle = new Label("Justificación de nodos aislados");
+        Label isolatedNodesTitle = new Label("Justificación de casos aislados");
         isolatedNodesTitle.getStyleClass().add("section-title");
 
-        Label isolatedNodesSubtitle = new Label("Antes de cerrar la investigación, explica por qué cada nodo quedó sin grupo.");
+        Label isolatedNodesSubtitle = new Label("Antes de cerrar la investigación, explica por qué cada caso quedó sin grupo.");
         isolatedNodesSubtitle.getStyleClass().add("app-subtitle");
         isolatedNodesSubtitle.setWrapText(true);
 
@@ -673,7 +689,7 @@ public class PlayerView {
         int index = 0;
 
         for (Caso caso : casos) {
-            CaseNode node = new CaseNode(caso);
+            CaseNode node = new CaseNode(caso, String.format("%02d", index));
             double startX = random.nextDouble(margin, Math.max(margin + 1, width - margin));
             double startY = random.nextDouble(margin, Math.max(margin + 1, height - margin));
             node.setBoardPosition(startX, startY);
@@ -699,7 +715,7 @@ public class PlayerView {
             if (selectedNode == null) {
                 selectedNode = node;
                 node.setSelected(true);
-                statusLabel.setText("Seleccionado: " + node.getCaso().getNombre() + ". Elige otro nodo para asociarlo.");
+                statusLabel.setText("Seleccionado: " + node.getCaso().getNombre() + ". Elige otro caso para asociarlo.");
                 return;
             }
 
@@ -720,15 +736,17 @@ public class PlayerView {
                 return;
             }
             ScaleTransition st = new ScaleTransition(javafx.util.Duration.millis(120), node);
-            st.setToX(1.08);
-            st.setToY(1.08);
+            double targetScale = node.isSelected() ? 1.18 : 1.08;
+            st.setToX(targetScale);
+            st.setToY(targetScale);
             st.play();
         });
 
         node.setOnMouseExited(event -> {
             ScaleTransition st = new ScaleTransition(javafx.util.Duration.millis(120), node);
-            st.setToX(1.0);
-            st.setToY(1.0);
+            double targetScale = node.isSelected() ? 1.18 : 1.0;
+            st.setToX(targetScale);
+            st.setToY(targetScale);
             st.play();
         });
     }
@@ -930,10 +948,12 @@ public class PlayerView {
     }
 
     private void updateUngroupedNodesLabel() {
+        long totalCount = nodes.size();
         long ungroupedCount = nodes.stream()
                 .filter(node -> !isGroupedNode(node))
                 .count();
-        ungroupedNodesLabel.setText("Nodos sin grupo: " + ungroupedCount);
+        totalNodesLabel.setText("Casos totales: " + totalCount);
+        ungroupedNodesLabel.setText("Sin grupo: " + ungroupedCount);
     }
 
     private void refreshCasesModule() {
@@ -1429,18 +1449,38 @@ public class PlayerView {
         Duration remaining = INVESTIGATION_DURATION.minus(elapsed);
 
         if (remaining.isNegative() || remaining.isZero()) {
-            timerLabel.setText("00:00:00");
+            timerLabel.setText("TIEMPO 00:00:00");
+            timerLabel.setScaleX(1.34);
+            timerLabel.setScaleY(1.34);
             finalizeInvestigation("tiempo agotado");
             return;
         }
 
-        timerLabel.setText(formatDuration(remaining));
-        if (remaining.toMinutes() <= 10) {
+        timerLabel.setText("TIEMPO " + formatDuration(remaining));
+        if (remaining.toMinutes() <= 2) {
+            timerLabel.setScaleX(1.28);
+            timerLabel.setScaleY(1.28);
+            if (!timerLabel.getStyleClass().contains("timer-pill-critical")) {
+                timerLabel.getStyleClass().add("timer-pill-critical");
+            }
+        } else if (remaining.toMinutes() <= 5) {
+            timerLabel.setScaleX(1.18);
+            timerLabel.setScaleY(1.18);
+            timerLabel.getStyleClass().remove("timer-pill-critical");
+            if (!timerLabel.getStyleClass().contains("timer-pill-warning")) {
+                timerLabel.getStyleClass().add("timer-pill-warning");
+            }
+        } else if (remaining.toMinutes() <= 10) {
+            timerLabel.setScaleX(1.1);
+            timerLabel.setScaleY(1.1);
             if (!timerLabel.getStyleClass().contains("timer-pill-warning")) {
                 timerLabel.getStyleClass().add("timer-pill-warning");
             }
         } else {
+            timerLabel.setScaleX(1.0);
+            timerLabel.setScaleY(1.0);
             timerLabel.getStyleClass().remove("timer-pill-warning");
+            timerLabel.getStyleClass().remove("timer-pill-critical");
         }
     }
 
@@ -1471,6 +1511,8 @@ public class PlayerView {
         if (investigationFinished || finishingInProgress) {
             return;
         }
+
+        DistractionAlertManager.stopMonitoring();
 
         TextInputDialog investigatorDialog = new TextInputDialog();
         investigatorDialog.setTitle("Cerrar investigación");
@@ -1542,7 +1584,7 @@ public class PlayerView {
                 .collect(Collectors.toList());
 
         if (isolatedNodes.isEmpty()) {
-            Label emptyLabel = new Label("No hay nodos aislados pendientes.");
+            Label emptyLabel = new Label("No hay casos aislados pendientes.");
             emptyLabel.getStyleClass().add("app-subtitle");
             isolatedNodesEntriesContainer.getChildren().add(emptyLabel);
             return;
@@ -1688,6 +1730,24 @@ public class PlayerView {
         }
 
         json.append("  ]\n");
+        json.append("  \"alerts\": [\n");
+
+        List<DistractionAlertManager.AlertRecord> alerts = DistractionAlertManager.getAlertRecords();
+        for (int i = 0; i < alerts.size(); i++) {
+            DistractionAlertManager.AlertRecord alert = alerts.get(i);
+            json.append("    {\n");
+            json.append("      \"timestamp\": \"").append(escapeJson(alert.getTimestamp())).append("\",\n");
+            json.append("      \"image\": \"").append(escapeJson(alert.getImageName())).append("\",\n");
+            json.append("      \"status\": \"").append(escapeJson(alert.getStatus())).append("\",\n");
+            json.append("      \"response\": \"").append(escapeJson(alert.getResponseText())).append("\"\n");
+            json.append("    }");
+            if (i < alerts.size() - 1) {
+                json.append(",");
+            }
+            json.append("\n");
+        }
+
+        json.append("  ]\n");
         json.append("}\n");
         return json.toString();
     }
@@ -1789,6 +1849,23 @@ public class PlayerView {
                                 idx + ". " + node.getCaso().getNombre() + " - Caso aislado");
                         y = writePdfWrappedLine(content, page, y, 11,
                                 "   Justificación: " + reason);
+                        idx++;
+                    }
+                }
+
+                y = writePdfLine(content, page, y, 11, "", false);
+                y = writePdfLine(content, page, y, 13, "Alertas distractivas", true);
+                List<DistractionAlertManager.AlertRecord> alerts = DistractionAlertManager.getAlertRecords();
+                if (alerts.isEmpty()) {
+                    y = writePdfWrappedLine(content, page, y, 11, "- No se registraron alertas distractivas.");
+                } else {
+                    int idx = 1;
+                    for (DistractionAlertManager.AlertRecord alert : alerts) {
+                        y = writePdfWrappedLine(content, page, y, 11,
+                                idx + ". " + alert.getTimestamp() + " | Imagen: " + alert.getImageName() + " | Estado: " + normalizeJustification(alert.getStatus()));
+                        if (alert.getResponseText() != null && !alert.getResponseText().isBlank()) {
+                            y = writePdfWrappedLine(content, page, y, 11, "   Respuesta: " + alert.getResponseText());
+                        }
                         idx++;
                     }
                 }
@@ -2214,14 +2291,18 @@ public class PlayerView {
     private static final class CaseNode extends StackPane {
 
         private final Caso caso;
+        private final String displayNumber;
+        private final Label numberBadge;
         private double vx;
         private double vy;
         private boolean dragging;
         private double dragOffsetX;
         private double dragOffsetY;
+        private boolean selected;
 
-        private CaseNode(Caso caso) {
+        private CaseNode(Caso caso, String displayNumber) {
             this.caso = caso;
+            this.displayNumber = displayNumber;
             setPrefSize(NODE_DIAMETER, NODE_DIAMETER);
             setMinSize(NODE_DIAMETER, NODE_DIAMETER);
             setMaxSize(NODE_DIAMETER, NODE_DIAMETER);
@@ -2237,19 +2318,34 @@ public class PlayerView {
             title.setWrappingWidth(NODE_DIAMETER - 12);
             title.setTextAlignment(javafx.scene.text.TextAlignment.CENTER);
 
+            numberBadge = new Label(displayNumber);
+            numberBadge.getStyleClass().add("case-number-badge");
+            StackPane.setAlignment(numberBadge, Pos.TOP_LEFT);
+            StackPane.setMargin(numberBadge, new Insets(6, 0, 0, 6));
+
             VBox content = new VBox(2, sphere, title);
             content.setAlignment(Pos.CENTER);
-            getChildren().add(content);
+            getChildren().addAll(content, numberBadge);
         }
 
         private void setSelected(boolean selected) {
+            this.selected = selected;
             if (selected) {
                 if (!getStyleClass().contains("selected")) {
                     getStyleClass().add("selected");
                 }
+                setScaleX(1.18);
+                setScaleY(1.18);
+                toFront();
             } else {
                 getStyleClass().remove("selected");
+                setScaleX(1.0);
+                setScaleY(1.0);
             }
+        }
+
+        private boolean isSelected() {
+            return selected;
         }
 
         private Caso getCaso() {

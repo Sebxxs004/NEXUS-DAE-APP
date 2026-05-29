@@ -53,51 +53,103 @@ public class LoginView {
         btnClose.setStyle(buttonStyle("#7f1d1d", "#f87171", "#ffffff"));
         btnClose.setTooltip(new Tooltip("Salir de la aplicación"));
         
-        Button btnAdmin = new Button("📊  PANEL ADMINISTRATIVO");
-        btnAdmin.setPrefWidth(320);
-        btnAdmin.setPrefHeight(48);
-        btnAdmin.setStyle(
+        Button btnAdminNew = new Button("📁  PANEL NUEVO");
+        btnAdminNew.setPrefWidth(320);
+        btnAdminNew.setPrefHeight(48);
+        btnAdminNew.setStyle(
             "-fx-font-size: 12; " +
             "-fx-font-weight: bold; " +
             "-fx-padding: 12; " +
-            "-fx-background-color: #0f766e; " +
-            "-fx-text-fill: #ffffff; " +
-            "-fx-border-color: #14b8a6; " +
+            "-fx-background-color: #d97706; " +
+            "-fx-text-fill: #041526; " +
+            "-fx-border-color: #f59e0b; " +
             "-fx-border-width: 2; " +
             "-fx-border-radius: 6; " +
             "-fx-background-radius: 6; " +
             "-fx-font-family: 'Segoe UI'; " +
             "-fx-cursor: hand;"
         );
-        btnAdmin.setOnMouseEntered(e -> btnAdmin.setStyle(
+        btnAdminNew.setOnMouseEntered(e -> btnAdminNew.setStyle(
             "-fx-font-size: 12; " +
             "-fx-font-weight: bold; " +
             "-fx-padding: 12; " +
-            "-fx-background-color: #14b8a6; " +
-            "-fx-text-fill: #ffffff; " +
-            "-fx-border-color: #38bdf8; " +
+            "-fx-background-color: #f59e0b; " +
+            "-fx-text-fill: #041526; " +
+            "-fx-border-color: #fef3c7; " +
             "-fx-border-width: 2; " +
             "-fx-border-radius: 6; " +
             "-fx-background-radius: 6; " +
             "-fx-font-family: 'Segoe UI'; " +
             "-fx-cursor: hand;"
         ));
-        btnAdmin.setOnMouseExited(e -> btnAdmin.setStyle(
+        btnAdminNew.setOnMouseExited(e -> btnAdminNew.setStyle(
             "-fx-font-size: 12; " +
             "-fx-font-weight: bold; " +
             "-fx-padding: 12; " +
-            "-fx-background-color: #0f766e; " +
-            "-fx-text-fill: #ffffff; " +
-            "-fx-border-color: #14b8a6; " +
+            "-fx-background-color: #d97706; " +
+            "-fx-text-fill: #041526; " +
+            "-fx-border-color: #f59e0b; " +
             "-fx-border-width: 2; " +
             "-fx-border-radius: 6; " +
             "-fx-background-radius: 6; " +
             "-fx-font-family: 'Segoe UI'; " +
             "-fx-cursor: hand;"
         ));
-        btnAdmin.setOnAction(e -> {
-            AdminView adminView = new AdminView(stage);
-            Scene scene = new Scene(adminView.getView(), 1280, 860);
+        btnAdminNew.setOnAction(e -> {
+            AdminViewNew adminViewNew = new AdminViewNew(stage);
+            Scene scene = new Scene(adminViewNew.getView(), 1500, 900);
+            Theme.apply(scene);
+            stage.setScene(scene);
+            stage.setMaximized(true);
+            stage.setFullScreen(true);
+        });
+
+        Button btnAlertAdmin = new Button("⚠  PANEL ALERTAS");
+        btnAlertAdmin.setPrefWidth(320);
+        btnAlertAdmin.setPrefHeight(48);
+        btnAlertAdmin.setStyle(
+            "-fx-font-size: 12; " +
+            "-fx-font-weight: bold; " +
+            "-fx-padding: 12; " +
+            "-fx-background-color: linear-gradient(to bottom, #ef4444, #991b1b); " +
+            "-fx-text-fill: #fff7ed; " +
+            "-fx-border-color: #fecaca; " +
+            "-fx-border-width: 2; " +
+            "-fx-border-radius: 6; " +
+            "-fx-background-radius: 6; " +
+            "-fx-font-family: 'Segoe UI'; " +
+            "-fx-cursor: hand;"
+        );
+        btnAlertAdmin.setOnMouseEntered(e -> btnAlertAdmin.setStyle(
+            "-fx-font-size: 12; " +
+            "-fx-font-weight: bold; " +
+            "-fx-padding: 12; " +
+            "-fx-background-color: linear-gradient(to bottom, #f87171, #dc2626); " +
+            "-fx-text-fill: #fff7ed; " +
+            "-fx-border-color: #fee2e2; " +
+            "-fx-border-width: 2; " +
+            "-fx-border-radius: 6; " +
+            "-fx-background-radius: 6; " +
+            "-fx-font-family: 'Segoe UI'; " +
+            "-fx-cursor: hand;"
+        ));
+        btnAlertAdmin.setOnMouseExited(e -> btnAlertAdmin.setStyle(
+            "-fx-font-size: 12; " +
+            "-fx-font-weight: bold; " +
+            "-fx-padding: 12; " +
+            "-fx-background-color: linear-gradient(to bottom, #ef4444, #991b1b); " +
+            "-fx-text-fill: #fff7ed; " +
+            "-fx-border-color: #fecaca; " +
+            "-fx-border-width: 2; " +
+            "-fx-border-radius: 6; " +
+            "-fx-background-radius: 6; " +
+            "-fx-font-family: 'Segoe UI'; " +
+            "-fx-cursor: hand;"
+        ));
+        btnAlertAdmin.setOnAction(e -> {
+            AdminAlertView alertView = new AdminAlertView(stage);
+            Scene scene = new Scene(alertView.getView(), 1500, 900);
+            alertView.applyTheme(scene);
             Theme.apply(scene);
             stage.setScene(scene);
             stage.setMaximized(true);
@@ -147,8 +199,9 @@ public class LoginView {
             "-fx-cursor: hand;"
         ));
         btnPlayer.setOnAction(e -> {
-            PlayerView playerView = new PlayerView(stage);
+            PlayerViewBrown playerView = new PlayerViewBrown(stage);
             Scene scene = new Scene(playerView.getView(), 1500, 900);
+            playerView.applyTheme(scene);
             Theme.apply(scene);
             stage.setScene(scene);
             stage.setMaximized(true);
@@ -157,7 +210,7 @@ public class LoginView {
 
         btnClose.setOnAction(e -> stage.close());
 
-        VBox buttonBox = new VBox(12, btnAdmin, btnPlayer, btnClose);
+        VBox buttonBox = new VBox(12, btnAdminNew, btnAlertAdmin, btnPlayer, btnClose);
         
         sidebar.getChildren().addAll(logo, title, description, sep1, emailLabel, buttonBox);
         VBox.setVgrow(sidebar, Priority.ALWAYS);
