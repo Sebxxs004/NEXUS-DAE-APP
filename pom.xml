@@ -14,7 +14,7 @@
         <maven.compiler.target>17</maven.compiler.target>
         <javafx.version>17.0.6</javafx.version>
         <app.mainClass>com.prisma.Launcher</app.mainClass>
-        <app.name>PRISMA-DAE-APP</app.name>
+        <app.name>NEXUS-DAE</app.name>
     </properties>
 
     <dependencies>

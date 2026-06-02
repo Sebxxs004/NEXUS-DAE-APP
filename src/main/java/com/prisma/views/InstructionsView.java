@@ -143,7 +143,7 @@ public class InstructionsView {
 
         sideNav.getChildren().addAll(
                 makeNavItem(1, "Bienvenida"),
-                makeNavItem(2, "¿Qué es PRISMA?"),
+                makeNavItem(2, "¿Qué es NEXUS?"),
                 makeNavItem(3, "Cada decisión importa"),
                 makeNavItem(4, "Tu objetivo")
         );
@@ -257,7 +257,7 @@ public class InstructionsView {
 
         section.getChildren().addAll(alertGrid, contextBox, ctaRow(
                 "¿Listo para continuar?",
-                "Conozca qué es PRISMA y cómo funciona.",
+                "Conozca qué es NEXUS y cómo funciona.",
                 "Siguiente →",
                 () -> goToSection(2),
                 "-fx-background-color: rgba(224,157,16,0.06); -fx-border-color: rgba(224,157,16,0.18); -fx-border-width: 1; -fx-background-radius: 12; -fx-border-radius: 12;"
@@ -268,8 +268,8 @@ public class InstructionsView {
 
     private VBox buildSection2() {
         VBox section = new VBox(18);
-        section.getChildren().add(sectionHeader("🧩", "¿Qué es PRISMA?", "Una simulación interactiva diseñada para fiscales."));
-        section.getChildren().add(infoBox("PRISMA es una simulación interactiva en la que usted asume el rol de Fiscal Delegado al frente de un despacho con una carga real de trabajo."));
+        section.getChildren().add(sectionHeader("🧩", "¿Qué es NEXUS?", "Una simulación interactiva diseñada para fiscales."));
+        section.getChildren().add(infoBox("NEXUS es una simulación interactiva en la que usted asume el rol de Fiscal Delegado al frente de un despacho con una carga real de trabajo."));
 
         Label during = new Label("DURANTE EL JUEGO DEBERÁ:");
         during.setStyle("-fx-text-fill: #94a3b8; -fx-font-size: 11; -fx-font-weight: bold; -fx-font-family: 'Segoe UI'; -fx-letter-spacing: 2px;");
@@ -347,7 +347,7 @@ public class InstructionsView {
 
     private VBox buildSection4() {
         VBox section = new VBox(18);
-        section.getChildren().add(sectionHeader("🎯", "Objetivo de PRISMA", "Lo que se evalúa en la simulación."));
+        section.getChildren().add(sectionHeader("🎯", "Objetivo de NEXUS", "Lo que se evalúa en la simulación."));
         section.getChildren().add(infoBox("Lograr un equilibrio sostenible entre: legalidad, eficiencia y atención real a víctimas."));
 
         GridPane objectives = new GridPane();
@@ -375,8 +375,8 @@ public class InstructionsView {
         section.getChildren().addAll(objectives, quote, ctaRow(
                 "¡Todo listo para comenzar!",
                 "Ingrese al despacho y tome su primer turno.",
-                "🚀 Ir a PRISMA",
-                this::launchPrisma,
+                "🚀 Ir a NEXUS",
+                this::launchNexus,
                 "-fx-background-color: rgba(198,130,10,0.10); -fx-border-color: rgba(224,157,16,0.30); -fx-border-width: 1; -fx-background-radius: 12; -fx-border-radius: 12;"
         ));
 
@@ -630,7 +630,7 @@ public class InstructionsView {
         }
     }
 
-    private void launchPrisma() {
+    private void launchNexus() {
         if (!InvestigationTeamContext.ensureConfigured(stage)) {
             return;
         }

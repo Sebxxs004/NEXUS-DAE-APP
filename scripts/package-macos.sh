@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Empaqueta PRISMA-DAE-APP para macOS (app-image + DMG) con casos/alertas incluidos.
+# Empaqueta NEXUS-DAE para macOS (app-image + DMG) con casos/alertas incluidos.
 # Requiere: JDK 17+ con jpackage, Maven, macOS arm64/x64.
 
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$PROJECT_ROOT"
 
-APP_NAME="PRISMA-DAE-APP"
+APP_NAME="NEXUS-DAE"
 MAIN_JAR="${APP_NAME}.jar"
 MAIN_CLASS="com.prisma.Launcher"
 APP_VERSION="1.0.0"
@@ -60,7 +60,7 @@ rm -rf "$DIST_DIR/$APP_NAME.app"
   --main-jar "$MAIN_JAR" \
   --main-class "$MAIN_CLASS" \
   --app-version "$APP_VERSION" \
-  --mac-package-identifier "com.prisma.dae.app"
+  --mac-package-identifier "com.prisma.dae"
 
 echo "==> Copiando casos/ y alertas/ junto al .app y en Contents/app..."
 rm -rf "$DIST_DIR/casos" "$DIST_DIR/alertas"

@@ -29,7 +29,7 @@ public final class InvestigationTestPdfGenerator {
         Files.createDirectories(downloads);
 
         String timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss"));
-        Path output = downloads.resolve("prisma-pdf-prueba-" + timestamp + ".pdf");
+        Path output = downloads.resolve("nexus-pdf-prueba-" + timestamp + ".pdf");
 
         try (PDDocument document = new PDDocument()) {
             PDPage page = new PDPage(PDRectangle.LETTER);
@@ -39,7 +39,7 @@ public final class InvestigationTestPdfGenerator {
             float y = page.getMediaBox().getHeight() - margin;
 
             try (PDPageContentStream content = new PDPageContentStream(document, page)) {
-                y = writeLine(content, y, 16, true, "PRISMA DAE - Reporte de Investigación (Prueba)");
+                y = writeLine(content, y, 16, true, "NEXUS DAE - Reporte de Investigación (Prueba)");
                 y = writeLine(content, y, 11, false, "Integrantes: a, b, c");
                 y = writeLine(content, y, 11, false, "Fecha de cierre: " + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")));
                 y = writeLine(content, y, 11, false, "Motivo de cierre: finalización manual");

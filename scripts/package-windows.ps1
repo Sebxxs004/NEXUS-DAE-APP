@@ -34,12 +34,12 @@ $jpackage = Resolve-JPackage
     --type app-image `
     --dest $outputDir `
     --input $inputDir `
-    --name 'PRISMA-DAE' `
-    --main-jar 'PRISMA-DAE.jar' `
+    --name 'NEXUS-DAE' `
+    --main-jar 'NEXUS-DAE.jar' `
     --main-class 'com.prisma.Launcher' `
     --app-version '1.0.0'
 
-$appDir = Join-Path $outputDir 'PRISMA-DAE'
+$appDir = Join-Path $outputDir 'NEXUS-DAE'
 if (-not (Test-Path $appDir)) {
     throw "No se encontro la carpeta empaquetada: $appDir"
 }
@@ -54,10 +54,10 @@ if (Test-Path $alertasSource) {
     Copy-Item -Recurse -Force $alertasSource (Join-Path $appDir 'alertas')
 }
 
-$zipPath = Join-Path $outputDir 'PRISMA-DAE-1.0.0-windows.zip'
+$zipPath = Join-Path $outputDir 'NEXUS-DAE-1.0.0-windows.zip'
 if (Test-Path $zipPath) {
     Remove-Item $zipPath -Force
 }
-Compress-Archive -Path (Join-Path $outputDir 'PRISMA-DAE') -DestinationPath $zipPath -Force
+Compress-Archive -Path (Join-Path $outputDir 'NEXUS-DAE') -DestinationPath $zipPath -Force
 
 Write-Host "Listo. Paquete portable creado en $zipPath"

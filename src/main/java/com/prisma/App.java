@@ -14,7 +14,7 @@ public class App extends Application {
         LoginView loginView = new LoginView(primaryStage);
         Scene scene = new Scene(loginView.getView(), 980, 680);
         Theme.apply(scene);
-        primaryStage.setTitle("PRISMA DAE");
+        primaryStage.setTitle("NEXUS DAE");
         primaryStage.setScene(scene);
         primaryStage.setMaximized(true);
         primaryStage.setFullScreen(true);

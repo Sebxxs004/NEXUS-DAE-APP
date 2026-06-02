@@ -149,10 +149,10 @@ public class AdminView {
         Path downloads = Paths.get(System.getProperty("user.home"), "Downloads");
         Files.createDirectories(downloads);
         String timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss"));
-        Path output = downloads.resolve("prisma-simulado-" + timestamp + ".pdf");
+        Path output = downloads.resolve("nexus-simulado-" + timestamp + ".pdf");
 
-        // Try to locate latest investigation snapshot JSON in Documents/PRISMA
-        Path snapshotsDir = Paths.get(System.getProperty("user.home"), "Documents", "PRISMA");
+        // Try to locate latest investigation snapshot JSON in Documents/NEXUS
+        Path snapshotsDir = Paths.get(System.getProperty("user.home"), "Documents", "NEXUS");
         Path latestSnapshot = null;
         if (Files.exists(snapshotsDir) && Files.isDirectory(snapshotsDir)) {
             latestSnapshot = Files.list(snapshotsDir)
@@ -239,7 +239,7 @@ public class AdminView {
 
             PDPageContentStream[] contentWrapper = new PDPageContentStream[]{new PDPageContentStream(document, page)};
             try {
-                y = writePdfLine(document, contentWrapper, y, 16, "PRISMA DAE - Reporte de Investigación (Simulado)", true);
+                y = writePdfLine(document, contentWrapper, y, 16, "NEXUS DAE - Reporte de Investigación (Simulado)", true);
                 y = writePdfLine(document, contentWrapper, y, 11, "Generado: " + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")), false);
                 y = writePdfLine(document, contentWrapper, y, 11, "Fuente: " + (latestSnapshot == null ? "Catalogo de casos" : latestSnapshot.getFileName().toString()), false);
                 y = writePdfLine(document, contentWrapper, y, 11, "", false);
@@ -375,7 +375,7 @@ public class AdminView {
     private void showAlert(Alert.AlertType type, String message) {
         Alert alert = new Alert(type, message, ButtonType.OK);
         alert.setHeaderText(null);
-        alert.setTitle("PRISMA DAE");
+        alert.setTitle("NEXUS DAE");
         alert.showAndWait();
     }
 

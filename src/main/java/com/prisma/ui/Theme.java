@@ -3,7 +3,7 @@ package com.prisma.ui;
 import javafx.scene.Scene;
 
 public final class Theme {
-    private static final String STYLESHEET = Theme.class.getResource("/styles/prisma.css").toExternalForm();
+    private static final String STYLESHEET = Theme.class.getResource("/styles/nexus.css").toExternalForm();
 
     private Theme() {
     }

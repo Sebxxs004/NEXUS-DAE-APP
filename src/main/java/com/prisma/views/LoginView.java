@@ -85,11 +85,11 @@ public class LoginView {
 
         VBox logoTextBox = new VBox();
         logoTextBox.setSpacing(1);
-        Label prismaLabel = new Label("PRISMA DAE");
-        prismaLabel.setStyle("-fx-text-fill: #e09d10; -fx-font-size: 13; -fx-font-weight: bold; -fx-font-family: 'Segoe UI';");
+        Label nexusLabel = new Label("NEXUS DAE");
+        nexusLabel.setStyle("-fx-text-fill: #e09d10; -fx-font-size: 13; -fx-font-weight: bold; -fx-font-family: 'Segoe UI';");
         Label fgnSubtitle = new Label("FISCALÍA GENERAL DE LA NACIÓN");
         fgnSubtitle.setStyle("-fx-text-fill: rgba(255,255,255,0.45); -fx-font-size: 10; -fx-font-family: 'Segoe UI';");
-        logoTextBox.getChildren().addAll(prismaLabel, fgnSubtitle);
+        logoTextBox.getChildren().addAll(nexusLabel, fgnSubtitle);
         logoRow.getChildren().addAll(fgnBox, logoTextBox);
         VBox.setMargin(logoRow, new Insets(0, 0, 28, 0));
 
@@ -118,7 +118,7 @@ public class LoginView {
         mainTitleBox.getChildren().addAll(t1, t2, t3);
         VBox.setMargin(mainTitleBox, new Insets(0, 0, 8, 0));
 
-        Label subtitle = new Label("Acceso para fiscales autorizados. Asuma el rol de Fiscal Delegado y tome decisiones reales bajo presión.");
+        Label subtitle = new Label("Acceso para fiscales autorizados. Asuma el rol de Fiscal Delegado y tome decisiones reales.");
         subtitle.setWrapText(true);
         subtitle.setMaxWidth(320);
         subtitle.setStyle("-fx-text-fill: rgba(255,255,255,0.50); -fx-font-size: 13; -fx-font-family: 'Segoe UI';");
@@ -127,10 +127,10 @@ public class LoginView {
         VBox buttonGroup = new VBox(12);
         buttonGroup.setMaxWidth(300);
 
-        HBox prismaButton = buildPrimaryAction();
+        HBox nexusButton = buildPrimaryAction();
         HBox instructionsButton = buildGhostAction();
         HBox exitButton = buildExitAction();
-        buttonGroup.getChildren().addAll(prismaButton, instructionsButton, exitButton);
+        buttonGroup.getChildren().addAll(nexusButton, instructionsButton, exitButton);
 
         leftPanel.getChildren().addAll(logoRow, liveBadge, mainTitleBox, subtitle, buttonGroup);
 
@@ -161,7 +161,7 @@ public class LoginView {
         iconBox.getChildren().add(icon);
 
         VBox textBox = new VBox(1);
-        Label title = new Label("Ingresar a PRISMA");
+        Label title = new Label("Ingresar a NEXUS");
         title.setStyle("-fx-text-fill: #0c1220; -fx-font-size: 14; -fx-font-weight: bold; -fx-font-family: 'Segoe UI';");
         Label subtitle = new Label("Iniciar despacho fiscal");
         subtitle.setStyle("-fx-text-fill: #0c1220; -fx-font-size: 11; -fx-font-family: 'Segoe UI'; -fx-opacity: 0.65;");
@@ -179,7 +179,7 @@ public class LoginView {
             tt.setToX(0);
             tt.play();
         });
-        button.setOnMouseClicked(e -> openPrisma());
+        button.setOnMouseClicked(e -> openNexus());
         return button;
     }
 
@@ -263,7 +263,7 @@ public class LoginView {
         return button;
     }
 
-    private void openPrisma() {
+    private void openNexus() {
         AdminViewNew adminViewNew = new AdminViewNew(stage);
         Scene scene = new Scene(adminViewNew.getView(), 1500, 900);
         Theme.apply(scene);

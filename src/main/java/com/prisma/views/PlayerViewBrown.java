@@ -901,9 +901,9 @@ public class PlayerViewBrown {
             }
         });
 
-        if (!Boolean.TRUE.equals(caseNode.getProperties().get("prisma-brown-fixed"))) {
+        if (!Boolean.TRUE.equals(caseNode.getProperties().get("nexus-brown-fixed"))) {
             ensureNodeDiscStack(caseNode, isSelected, nodeNumber, imageName);
-            caseNode.getProperties().put("prisma-brown-fixed", true);
+            caseNode.getProperties().put("nexus-brown-fixed", true);
         } else {
             updateNodeDiscStack(caseNode, isSelected);
             updateNodeLabels(caseNode, nodeNumber, imageName);
