@@ -21,7 +21,7 @@ Ejecuta:
 
 Salida esperada:
 
-- `target\dist\PRISMA-DAE-1.0.0-windows.zip`
+- `target\dist\NEXUS-DAE-1.0.0-windows.zip`
 
 ## macOS
 
@@ -33,7 +33,7 @@ bash scripts/package-macos.sh
 
 Salida esperada:
 
-- `target/dist/PRISMA-DAE-1.0.0.dmg`
+- `target/dist/NEXUS-DAE-1.0.0.dmg`
 
 ## Nota importante
 

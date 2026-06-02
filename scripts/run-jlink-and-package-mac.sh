@@ -16,9 +16,9 @@ fi
 JDK_HOME="$1"
 OPENJFX_JMODS_ZIP="$2"
 ARCH="${3:-x64}"
-APP_NAME="PRISMA-DAE"
+APP_NAME="NEXUS-DAE"
 APP_VERSION="1.0.0"
-MAIN_JAR="target/package/PRISMA-DAE.jar"
+MAIN_JAR="target/package/NEXUS-DAE.jar"
 MAIN_CLASS="com.prisma.Launcher" # Ajusta si tu main es distinto
 OUT_DIR="target/dist/${APP_NAME}-mac"
 RUNTIME_DIR="jlink-runtime-mac"
@@ -66,7 +66,7 @@ mkdir -p "$OUT_DIR"
 "$JDK_HOME/bin/jpackage" \
   --type app-image \
   --input "target/package" \
-  --main-jar "PRISMA-DAE.jar" \
+  --main-jar "NEXUS-DAE.jar" \
   --main-class "$MAIN_CLASS" \
   --name "$APP_NAME" \
   --app-version "$APP_VERSION" \

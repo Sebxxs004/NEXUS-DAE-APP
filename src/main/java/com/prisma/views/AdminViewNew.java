@@ -254,7 +254,7 @@ public class AdminViewNew {
         welcomeTitle.setEffect(welcomeShadow);
         VBox.setMargin(welcomeTitle, new Insets(0, 0, 18, 0));
 
-        Image logoImage = new Image(getClass().getResourceAsStream("/styles/assets/PRISMA-DAE.png"));
+        Image logoImage = new Image(getClass().getResourceAsStream("/styles/assets/NEXUS-DAE.png"));
         ImageView logoView = new ImageView(logoImage);
         logoView.setFitWidth(160);
         logoView.setFitHeight(160);
@@ -264,8 +264,8 @@ public class AdminViewNew {
         logoShadow.setColor(Color.color(1.0, 220.0 / 255.0, 80.0 / 255.0, 0.22));
         logoView.setEffect(logoShadow);
 
-        Label prismaLabel = new Label("PRISMA");
-        prismaLabel.setStyle(
+        Label nexusLabel = new Label("NEXUS");
+        nexusLabel.setStyle(
             "-fx-text-fill: #f8fafc; " +
             "-fx-font-weight: bold; " +
             "-fx-font-size: 22; " +
@@ -282,7 +282,7 @@ public class AdminViewNew {
             "-fx-font-family: " + FONT + ";"
         );
 
-        VBox logoBlock = new VBox(6, logoView, prismaLabel, daeLabel);
+        VBox logoBlock = new VBox(6, logoView, nexusLabel, daeLabel);
         logoBlock.setAlignment(Pos.CENTER);
         VBox.setMargin(logoBlock, new Insets(0, 0, 14, 0));
 

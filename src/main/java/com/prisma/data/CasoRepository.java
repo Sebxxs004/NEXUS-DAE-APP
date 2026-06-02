@@ -63,7 +63,7 @@ public final class CasoRepository {
                 }
             }
         } catch (IOException e) {
-            System.err.println("PRISMA: No se pudo leer la carpeta casos/: " + e.getMessage());
+            System.err.println("NEXUS: No se pudo leer la carpeta casos/: " + e.getMessage());
         }
 
         found.sort(Comparator.comparing(Caso::getNombre, String.CASE_INSENSITIVE_ORDER));
@@ -109,7 +109,7 @@ public final class CasoRepository {
                         List.of("Fiscalía", "Policía Judicial")
                 ),
                 new Caso(
-                        "Operación Prisma",
+                        "Operación NEXUS",
                         "Posible red de coacción y encubrimiento con múltiples testigos.",
                         "Guayaquil",
                         LocalDate.of(2026, 2, 4),

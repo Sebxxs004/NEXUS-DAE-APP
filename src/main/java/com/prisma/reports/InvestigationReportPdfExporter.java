@@ -14,7 +14,7 @@ import org.apache.pdfbox.pdmodel.font.PDType1Font;
 import org.apache.pdfbox.pdmodel.graphics.image.PDImageXObject;
 
 /**
- * Genera el reporte PDF final de investigación con estética PRISMA (navy / dorado).
+ * Genera el reporte PDF final de investigación con estética NEXUS (navy / dorado).
  */
 public final class InvestigationReportPdfExporter {
 
@@ -116,7 +116,7 @@ public final class InvestigationReportPdfExporter {
                     }
                 }
 
-                canvas.drawFooter("PRISMA DAE — Fiscalia General de la Nacion");
+                canvas.drawFooter("NEXUS DAE — Fiscalia General de la Nacion");
             } finally {
                 canvas.close();
             }
@@ -301,7 +301,7 @@ public final class InvestigationReportPdfExporter {
             newPageIfNeeded(70);
             fillRect(MARGIN, y - 52, contentWidth, 52, COLOR_NAVY);
             fillRect(MARGIN, y - 54, contentWidth, 2, COLOR_GOLD);
-            writeText("PRISMA DAE", MARGIN + 14, y - 24, 20, true, COLOR_GOLD);
+            writeText("NEXUS DAE", MARGIN + 14, y - 24, 20, true, COLOR_GOLD);
             writeText("Reporte de investigacion estructural", MARGIN + 14, y - 42, 11, false, COLOR_META_LABEL);
             y -= 72;
         }

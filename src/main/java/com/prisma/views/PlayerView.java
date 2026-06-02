@@ -251,7 +251,7 @@ public class PlayerView {
 
         investigationStartedAtMillis = System.currentTimeMillis();
         investigationSessionId = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss"));
-        investigationSnapshotPath = Paths.get(System.getProperty("user.home"), "Documents", "PRISMA", "investigacion-" + investigationSessionId + ".json");
+        investigationSnapshotPath = Paths.get(System.getProperty("user.home"), "Documents", "NEXUS", "investigacion-" + investigationSessionId + ".json");
 
         timerLabel = new Label("TIEMPO " + formatDuration(INVESTIGATION_DURATION));
         timerLabel.getStyleClass().add("timer-pill");
@@ -1933,7 +1933,7 @@ public class PlayerView {
             finishingInProgress = false;
         });
 
-        Thread worker = new Thread(exportTask, "prisma-pdf-export");
+        Thread worker = new Thread(exportTask, "NEXUS-pdf-export");
         worker.setDaemon(true);
         worker.start();
     }
@@ -2159,7 +2159,7 @@ public class PlayerView {
         Files.createDirectories(downloads);
 
         String timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss"));
-        Path output = downloads.resolve("prisma-investigacion-" + timestamp + ".pdf");
+        Path output = downloads.resolve("NEXUS-investigacion-" + timestamp + ".pdf");
 
         ReportData reportData = buildInvestigationReportData(endReason, investigatorName);
         InvestigationReportPdfExporter.generate(output, reportData);
@@ -2497,7 +2497,7 @@ public class PlayerView {
     private void showAlert(Alert.AlertType type, String message) {
         Alert alert = new Alert(type, message, ButtonType.OK);
         alert.setHeaderText(null);
-        alert.setTitle("PRISMA DAE");
+        alert.setTitle("NEXUS DAE");
         alert.showAndWait();
     }
 

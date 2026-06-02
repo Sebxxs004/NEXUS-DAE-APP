@@ -14,7 +14,7 @@ fi
 JDK_HOME="$1"
 MAIN_JAR="$2"
 MAIN_CLASS="$3"
-APP_NAME="PRISMA-DAE"
+APP_NAME="NEXUS-DAE"
 APP_VERSION="1.0.0"
 OUT_DIR="target/dist/${APP_NAME}-mac"
 RES_DIR="package-resources"

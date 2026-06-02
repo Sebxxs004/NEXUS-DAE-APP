@@ -35,10 +35,10 @@ JPACKAGE_BIN="$(resolve_jpackage)"
   --type dmg \
   --dest "$OUTPUT_DIR" \
   --input "$INPUT_DIR" \
-  --name "PRISMA-DAE" \
-  --main-jar "PRISMA-DAE.jar" \
+  --name "NEXUS-DAE" \
+  --main-jar "NEXUS-DAE.jar" \
   --main-class "com.prisma.Launcher" \
   --app-version "1.0.0" \
   --mac-package-identifier "com.prisma.dae"
 
-echo "Listo. Instalador creado en $OUTPUT_DIR/PRISMA-DAE-1.0.0.dmg"
+echo "Listo. Instalador creado en $OUTPUT_DIR/NEXUS-DAE-1.0.0.dmg"
