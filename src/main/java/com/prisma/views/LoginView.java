@@ -110,8 +110,8 @@ public class LoginView {
 
         VBox mainTitleBox = new VBox(0);
         Label t1 = new Label("Simulador de");
-        Label t2 = new Label("Investigación");
-        Label t3 = new Label("Estructural");
+        Label t2 = new Label("Despacho");
+        Label t3 = new Label("Fiscal");
         t1.setStyle("-fx-text-fill: #f8fafc; -fx-font-size: 34; -fx-font-weight: bold; -fx-font-family: 'Segoe UI';");
         t2.setStyle("-fx-text-fill: #f8fafc; -fx-font-size: 34; -fx-font-weight: bold; -fx-font-family: 'Segoe UI';");
         t3.setStyle("-fx-text-fill: #e09d10; -fx-font-size: 34; -fx-font-weight: bold; -fx-font-family: 'Segoe UI';");

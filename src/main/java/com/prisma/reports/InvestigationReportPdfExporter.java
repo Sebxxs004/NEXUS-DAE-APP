@@ -116,7 +116,7 @@ public final class InvestigationReportPdfExporter {
                     }
                 }
 
-                canvas.drawFooter("PRISMA DAE — Fiscalia General de la Nacion — Reporte de investigacion estructural");
+                canvas.drawFooter("PRISMA DAE — Fiscalia General de la Nacion");
             } finally {
                 canvas.close();
             }
