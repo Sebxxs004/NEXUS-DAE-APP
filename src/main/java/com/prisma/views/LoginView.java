@@ -2,251 +2,299 @@ package com.prisma.views;
 
 import com.prisma.ui.Theme;
 
+import javafx.animation.FadeTransition;
+import javafx.animation.TranslateTransition;
+import javafx.application.Platform;
+import javafx.geometry.Insets;
+import javafx.geometry.Pos;
+import javafx.scene.Cursor;
 import javafx.scene.Scene;
-import javafx.scene.control.Button;
 import javafx.scene.control.Label;
-import javafx.scene.control.Separator;
-import javafx.scene.control.Tooltip;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
-import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.HBox;
-import javafx.scene.layout.Priority;
+import javafx.scene.layout.Region;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
+import javafx.scene.paint.Color;
+import javafx.scene.paint.CycleMethod;
+import javafx.scene.paint.LinearGradient;
+import javafx.scene.paint.Stop;
+import javafx.scene.shape.Circle;
+import javafx.scene.shape.Rectangle;
+import javafx.scene.text.TextAlignment;
 import javafx.stage.Stage;
+import javafx.util.Duration;
 
 public class LoginView {
-    private BorderPane view;
+    private final Stage stage;
+    private final StackPane view;
 
     public LoginView(Stage stage) {
-        view = new BorderPane();
-        view.setStyle("-fx-background-color: #040814;");
-        
-        // ===== SIDEBAR IZQUIERDO =====
-        VBox sidebar = new VBox(24);
-        sidebar.setStyle("-fx-background-color: rgba(4, 8, 20, 0.95); -fx-padding: 48;");
-        sidebar.setPrefWidth(420);
-        sidebar.setMaxWidth(420);
-        sidebar.setMinWidth(420);
-        
-        Label logo = new Label("PRISMA DAE");
-        logo.setStyle("-fx-font-size: 20; -fx-font-weight: bold; -fx-text-fill: #38bdf8; -fx-font-family: 'Segoe UI';");
-        
-        Label title = new Label("SIMULADOR DE\nINVESTIGACIÓN\nESTRUCTURAL DEL\nDESPACHO FISCAL");
-        title.setStyle("-fx-font-size: 20; -fx-font-weight: bold; -fx-text-fill: #ffffff; -fx-font-family: 'Segoe UI'; -fx-line-spacing: 4;");
-        title.setWrapText(true);
-        
-        Label description = new Label("Acceso seguro para fiscales autorizados. Fortaleza la identificación de patrones criminales, la asociación de casos, la articulación del equipo y la formulación del plan de acción para casos complejos.");
-        description.setStyle("-fx-font-size: 12; -fx-text-fill: #a1d8f4; -fx-font-family: 'Segoe UI'; -fx-wrap-text: true;");
-        description.setWrapText(true);
-        
-        Separator sep1 = new Separator();
-        sep1.setStyle("-fx-padding: 12;");
-        
-        Label emailLabel = new Label("SELECCIONAR ROL");
-        emailLabel.setStyle("-fx-font-size: 11; -fx-font-weight: bold; -fx-text-fill: #38bdf8; -fx-font-family: 'Segoe UI';");
+        this.stage = stage;
+        this.view = new StackPane();
+        this.view.setPrefSize(1500, 900);
+        this.view.setMinSize(Region.USE_PREF_SIZE, Region.USE_PREF_SIZE);
+        this.view.setStyle("-fx-background-color: #040814;");
 
-        Button btnClose = new Button("Cerrar sistema");
-        btnClose.setPrefHeight(44);
-        btnClose.setPrefWidth(164);
-        btnClose.setStyle(buttonStyle("#7f1d1d", "#f87171", "#ffffff"));
-        btnClose.setTooltip(new Tooltip("Salir de la aplicación"));
-        
-        Button btnAdminNew = new Button("📁  PANEL NUEVO");
-        btnAdminNew.setPrefWidth(320);
-        btnAdminNew.setPrefHeight(48);
-        btnAdminNew.setStyle(
-            "-fx-font-size: 12; " +
-            "-fx-font-weight: bold; " +
-            "-fx-padding: 12; " +
-            "-fx-background-color: #d97706; " +
-            "-fx-text-fill: #041526; " +
-            "-fx-border-color: #f59e0b; " +
-            "-fx-border-width: 2; " +
-            "-fx-border-radius: 6; " +
-            "-fx-background-radius: 6; " +
-            "-fx-font-family: 'Segoe UI'; " +
-            "-fx-cursor: hand;"
-        );
-        btnAdminNew.setOnMouseEntered(e -> btnAdminNew.setStyle(
-            "-fx-font-size: 12; " +
-            "-fx-font-weight: bold; " +
-            "-fx-padding: 12; " +
-            "-fx-background-color: #f59e0b; " +
-            "-fx-text-fill: #041526; " +
-            "-fx-border-color: #fef3c7; " +
-            "-fx-border-width: 2; " +
-            "-fx-border-radius: 6; " +
-            "-fx-background-radius: 6; " +
-            "-fx-font-family: 'Segoe UI'; " +
-            "-fx-cursor: hand;"
-        ));
-        btnAdminNew.setOnMouseExited(e -> btnAdminNew.setStyle(
-            "-fx-font-size: 12; " +
-            "-fx-font-weight: bold; " +
-            "-fx-padding: 12; " +
-            "-fx-background-color: #d97706; " +
-            "-fx-text-fill: #041526; " +
-            "-fx-border-color: #f59e0b; " +
-            "-fx-border-width: 2; " +
-            "-fx-border-radius: 6; " +
-            "-fx-background-radius: 6; " +
-            "-fx-font-family: 'Segoe UI'; " +
-            "-fx-cursor: hand;"
-        ));
-        btnAdminNew.setOnAction(e -> {
-            AdminViewNew adminViewNew = new AdminViewNew(stage);
-            Scene scene = new Scene(adminViewNew.getView(), 1500, 900);
-            Theme.apply(scene);
-            stage.setScene(scene);
-            stage.setMaximized(true);
-            stage.setFullScreen(true);
-        });
-
-        Button btnAlertAdmin = new Button("⚠  PANEL ALERTAS");
-        btnAlertAdmin.setPrefWidth(320);
-        btnAlertAdmin.setPrefHeight(48);
-        btnAlertAdmin.setStyle(
-            "-fx-font-size: 12; " +
-            "-fx-font-weight: bold; " +
-            "-fx-padding: 12; " +
-            "-fx-background-color: linear-gradient(to bottom, #ef4444, #991b1b); " +
-            "-fx-text-fill: #fff7ed; " +
-            "-fx-border-color: #fecaca; " +
-            "-fx-border-width: 2; " +
-            "-fx-border-radius: 6; " +
-            "-fx-background-radius: 6; " +
-            "-fx-font-family: 'Segoe UI'; " +
-            "-fx-cursor: hand;"
-        );
-        btnAlertAdmin.setOnMouseEntered(e -> btnAlertAdmin.setStyle(
-            "-fx-font-size: 12; " +
-            "-fx-font-weight: bold; " +
-            "-fx-padding: 12; " +
-            "-fx-background-color: linear-gradient(to bottom, #f87171, #dc2626); " +
-            "-fx-text-fill: #fff7ed; " +
-            "-fx-border-color: #fee2e2; " +
-            "-fx-border-width: 2; " +
-            "-fx-border-radius: 6; " +
-            "-fx-background-radius: 6; " +
-            "-fx-font-family: 'Segoe UI'; " +
-            "-fx-cursor: hand;"
-        ));
-        btnAlertAdmin.setOnMouseExited(e -> btnAlertAdmin.setStyle(
-            "-fx-font-size: 12; " +
-            "-fx-font-weight: bold; " +
-            "-fx-padding: 12; " +
-            "-fx-background-color: linear-gradient(to bottom, #ef4444, #991b1b); " +
-            "-fx-text-fill: #fff7ed; " +
-            "-fx-border-color: #fecaca; " +
-            "-fx-border-width: 2; " +
-            "-fx-border-radius: 6; " +
-            "-fx-background-radius: 6; " +
-            "-fx-font-family: 'Segoe UI'; " +
-            "-fx-cursor: hand;"
-        ));
-        btnAlertAdmin.setOnAction(e -> {
-            AdminAlertView alertView = new AdminAlertView(stage);
-            Scene scene = new Scene(alertView.getView(), 1500, 900);
-            alertView.applyTheme(scene);
-            Theme.apply(scene);
-            stage.setScene(scene);
-            stage.setMaximized(true);
-            stage.setFullScreen(true);
-        });
-
-        Button btnPlayer = new Button("🔍  TABLERO FISCAL");
-        btnPlayer.setPrefWidth(320);
-        btnPlayer.setPrefHeight(48);
-        btnPlayer.setStyle(
-            "-fx-font-size: 12; " +
-            "-fx-font-weight: bold; " +
-            "-fx-padding: 12; " +
-            "-fx-background-color: #1e3a8a; " +
-            "-fx-text-fill: #ffffff; " +
-            "-fx-border-color: #38bdf8; " +
-            "-fx-border-width: 2; " +
-            "-fx-border-radius: 6; " +
-            "-fx-background-radius: 6; " +
-            "-fx-font-family: 'Segoe UI'; " +
-            "-fx-cursor: hand;"
-        );
-        btnPlayer.setOnMouseEntered(e -> btnPlayer.setStyle(
-            "-fx-font-size: 12; " +
-            "-fx-font-weight: bold; " +
-            "-fx-padding: 12; " +
-            "-fx-background-color: #38bdf8; " +
-            "-fx-text-fill: #040814; " +
-            "-fx-border-color: #67e8f9; " +
-            "-fx-border-width: 2; " +
-            "-fx-border-radius: 6; " +
-            "-fx-background-radius: 6; " +
-            "-fx-font-family: 'Segoe UI'; " +
-            "-fx-cursor: hand;"
-        ));
-        btnPlayer.setOnMouseExited(e -> btnPlayer.setStyle(
-            "-fx-font-size: 12; " +
-            "-fx-font-weight: bold; " +
-            "-fx-padding: 12; " +
-            "-fx-background-color: #1e3a8a; " +
-            "-fx-text-fill: #ffffff; " +
-            "-fx-border-color: #38bdf8; " +
-            "-fx-border-width: 2; " +
-            "-fx-border-radius: 6; " +
-            "-fx-background-radius: 6; " +
-            "-fx-font-family: 'Segoe UI'; " +
-            "-fx-cursor: hand;"
-        ));
-        btnPlayer.setOnAction(e -> {
-            PlayerViewBrown playerView = new PlayerViewBrown(stage);
-            Scene scene = new Scene(playerView.getView(), 1500, 900);
-            playerView.applyTheme(scene);
-            Theme.apply(scene);
-            stage.setScene(scene);
-            stage.setMaximized(true);
-            stage.setFullScreen(true);
-        });
-
-        btnClose.setOnAction(e -> stage.close());
-
-        VBox buttonBox = new VBox(12, btnAdminNew, btnAlertAdmin, btnPlayer, btnClose);
-        
-        sidebar.getChildren().addAll(logo, title, description, sep1, emailLabel, buttonBox);
-        VBox.setVgrow(sidebar, Priority.ALWAYS);
-        
-        // ===== IMAGEN DE FONDO (DERECHA) =====
         Image backgroundImage = new Image(getClass().getResourceAsStream("/styles/assets/fondo-login.png"));
         ImageView backgroundView = new ImageView(backgroundImage);
         backgroundView.setPreserveRatio(false);
-        backgroundView.fitWidthProperty().bind(view.widthProperty().subtract(420));
+        backgroundView.fitWidthProperty().bind(view.widthProperty());
         backgroundView.fitHeightProperty().bind(view.heightProperty());
-        
-        StackPane imageContainer = new StackPane(backgroundView);
-        HBox.setHgrow(imageContainer, Priority.ALWAYS);
-        
-        // ===== CONTENEDOR PRINCIPAL (SIDEBAR + FONDO) =====
-        HBox mainContainer = new HBox(0, sidebar, imageContainer);
-        mainContainer.setStyle("-fx-background-color: #040814;");
-        
-        view.setCenter(mainContainer);
+
+        Rectangle horizontalOverlay = new Rectangle();
+        horizontalOverlay.widthProperty().bind(view.widthProperty());
+        horizontalOverlay.heightProperty().bind(view.heightProperty());
+        horizontalOverlay.setFill(new LinearGradient(
+                0, 0, 1, 0, true, CycleMethod.NO_CYCLE,
+                new Stop(0.00, Color.rgb(4, 8, 20, 0.92)),
+                new Stop(0.38, Color.rgb(4, 8, 20, 0.72)),
+                new Stop(0.65, Color.rgb(4, 8, 20, 0.18)),
+                new Stop(1.00, Color.TRANSPARENT)
+        ));
+
+        Rectangle bottomFade = new Rectangle();
+        bottomFade.widthProperty().bind(view.widthProperty());
+        bottomFade.setHeight(180);
+        bottomFade.setFill(new LinearGradient(
+                0, 0, 0, 1, true, CycleMethod.NO_CYCLE,
+                new Stop(0.0, Color.TRANSPARENT),
+                new Stop(1.0, Color.rgb(4, 8, 20, 0.85))
+        ));
+        StackPane.setAlignment(bottomFade, Pos.BOTTOM_LEFT);
+
+        VBox leftPanel = new VBox();
+        leftPanel.setSpacing(0);
+        leftPanel.setMaxWidth(400);
+        leftPanel.setPadding(new Insets(40, 44, 40, 44));
+        leftPanel.setStyle("-fx-background-color: transparent;");
+        StackPane.setAlignment(leftPanel, Pos.CENTER_LEFT);
+
+        HBox logoRow = new HBox(10);
+        logoRow.setAlignment(Pos.CENTER_LEFT);
+
+        StackPane fgnBox = new StackPane();
+        fgnBox.setPrefSize(36, 36);
+        fgnBox.setMinSize(36, 36);
+        fgnBox.setMaxSize(36, 36);
+        fgnBox.setStyle("-fx-background-color: #c6820a; -fx-background-radius: 6;");
+        Label fgnLabel = new Label("FGN");
+        fgnLabel.setStyle("-fx-text-fill: #ffffff; -fx-font-size: 11; -fx-font-weight: bold; -fx-font-family: 'Segoe UI';");
+        fgnBox.getChildren().add(fgnLabel);
+
+        VBox logoTextBox = new VBox();
+        logoTextBox.setSpacing(1);
+        Label prismaLabel = new Label("PRISMA DAE");
+        prismaLabel.setStyle("-fx-text-fill: #e09d10; -fx-font-size: 13; -fx-font-weight: bold; -fx-font-family: 'Segoe UI';");
+        Label fgnSubtitle = new Label("FISCALÍA GENERAL DE LA NACIÓN");
+        fgnSubtitle.setStyle("-fx-text-fill: rgba(255,255,255,0.45); -fx-font-size: 10; -fx-font-family: 'Segoe UI';");
+        logoTextBox.getChildren().addAll(prismaLabel, fgnSubtitle);
+        logoRow.getChildren().addAll(fgnBox, logoTextBox);
+        VBox.setMargin(logoRow, new Insets(0, 0, 28, 0));
+
+        HBox liveBadge = new HBox(6);
+        liveBadge.setAlignment(Pos.CENTER_LEFT);
+        liveBadge.setStyle("-fx-background-color: rgba(255,255,255,0.06); -fx-border-color: rgba(255,255,255,0.10); -fx-border-width: 1; -fx-background-radius: 20; -fx-border-radius: 20; -fx-padding: 4 11 4 11;");
+        Circle liveDot = new Circle(3, Color.web("#22c55e"));
+        FadeTransition dotPulse = new FadeTransition(Duration.seconds(2), liveDot);
+        dotPulse.setFromValue(1.0);
+        dotPulse.setToValue(0.3);
+        dotPulse.setCycleCount(FadeTransition.INDEFINITE);
+        dotPulse.setAutoReverse(true);
+        dotPulse.play();
+        Label liveLabel = new Label("Sistema activo");
+        liveLabel.setStyle("-fx-text-fill: rgba(255,255,255,0.50); -fx-font-size: 11; -fx-font-family: 'Segoe UI';");
+        liveBadge.getChildren().addAll(liveDot, liveLabel);
+        VBox.setMargin(liveBadge, new Insets(0, 0, 16, 0));
+
+        VBox mainTitleBox = new VBox(0);
+        Label t1 = new Label("Simulador de");
+        Label t2 = new Label("Investigación");
+        Label t3 = new Label("Estructural");
+        t1.setStyle("-fx-text-fill: #f8fafc; -fx-font-size: 34; -fx-font-weight: bold; -fx-font-family: 'Segoe UI';");
+        t2.setStyle("-fx-text-fill: #f8fafc; -fx-font-size: 34; -fx-font-weight: bold; -fx-font-family: 'Segoe UI';");
+        t3.setStyle("-fx-text-fill: #e09d10; -fx-font-size: 34; -fx-font-weight: bold; -fx-font-family: 'Segoe UI';");
+        mainTitleBox.getChildren().addAll(t1, t2, t3);
+        VBox.setMargin(mainTitleBox, new Insets(0, 0, 8, 0));
+
+        Label subtitle = new Label("Acceso para fiscales autorizados. Asuma el rol de Fiscal Delegado y tome decisiones reales bajo presión.");
+        subtitle.setWrapText(true);
+        subtitle.setMaxWidth(320);
+        subtitle.setStyle("-fx-text-fill: rgba(255,255,255,0.50); -fx-font-size: 13; -fx-font-family: 'Segoe UI';");
+        VBox.setMargin(subtitle, new Insets(0, 0, 36, 0));
+
+        VBox buttonGroup = new VBox(12);
+        buttonGroup.setMaxWidth(300);
+
+        HBox prismaButton = buildPrimaryAction();
+        HBox instructionsButton = buildGhostAction();
+        HBox exitButton = buildExitAction();
+        buttonGroup.getChildren().addAll(prismaButton, instructionsButton, exitButton);
+
+        leftPanel.getChildren().addAll(logoRow, liveBadge, mainTitleBox, subtitle, buttonGroup);
+
+        Label footerNote = new Label("Colombia · Sistema institucional\nFiscalía General de la Nación");
+        footerNote.setStyle("-fx-text-fill: rgba(255,255,255,0.28); -fx-font-size: 11; -fx-font-family: 'Segoe UI';");
+        footerNote.setTextAlignment(TextAlignment.RIGHT);
+        footerNote.setAlignment(Pos.CENTER_RIGHT);
+        StackPane.setAlignment(footerNote, Pos.BOTTOM_RIGHT);
+        StackPane.setMargin(footerNote, new Insets(0, 22, 18, 0));
+
+        view.getChildren().addAll(backgroundView, horizontalOverlay, bottomFade, leftPanel, footerNote);
     }
 
-    private String buttonStyle(String background, String border, String text) {
-        return "-fx-font-size: 12; " +
-                "-fx-font-weight: bold; " +
-                "-fx-padding: 12; " +
-                "-fx-background-color: " + background + "; " +
-                "-fx-text-fill: " + text + "; " +
-                "-fx-border-color: " + border + "; " +
-                "-fx-border-width: 2; " +
-                "-fx-border-radius: 6; " +
-                "-fx-background-radius: 6; " +
-                "-fx-font-family: 'Segoe UI'; " +
-                "-fx-cursor: hand;";
+    private HBox buildPrimaryAction() {
+        HBox button = new HBox(12);
+        button.setAlignment(Pos.CENTER_LEFT);
+        button.setPadding(new Insets(14, 20, 14, 20));
+        button.setCursor(Cursor.HAND);
+        button.setStyle("-fx-background-color: #e09d10; -fx-background-radius: 10;");
+
+        StackPane iconBox = new StackPane();
+        iconBox.setPrefSize(30, 30);
+        iconBox.setMinSize(30, 30);
+        iconBox.setMaxSize(30, 30);
+        iconBox.setStyle("-fx-background-color: rgba(0,0,0,0.18); -fx-background-radius: 7;");
+        Label icon = new Label("⚖️");
+        icon.setStyle("-fx-font-size: 16; -fx-font-family: 'Segoe UI';");
+        iconBox.getChildren().add(icon);
+
+        VBox textBox = new VBox(1);
+        Label title = new Label("Ingresar a PRISMA");
+        title.setStyle("-fx-text-fill: #0c1220; -fx-font-size: 14; -fx-font-weight: bold; -fx-font-family: 'Segoe UI';");
+        Label subtitle = new Label("Iniciar despacho fiscal");
+        subtitle.setStyle("-fx-text-fill: #0c1220; -fx-font-size: 11; -fx-font-family: 'Segoe UI'; -fx-opacity: 0.65;");
+        textBox.getChildren().addAll(title, subtitle);
+
+        button.getChildren().addAll(iconBox, textBox);
+
+        button.setOnMouseEntered(e -> {
+            TranslateTransition tt = new TranslateTransition(Duration.millis(140), button);
+            tt.setToX(3);
+            tt.play();
+        });
+        button.setOnMouseExited(e -> {
+            TranslateTransition tt = new TranslateTransition(Duration.millis(140), button);
+            tt.setToX(0);
+            tt.play();
+        });
+        button.setOnMouseClicked(e -> openPrisma());
+        return button;
     }
 
-    public BorderPane getView() {
+    private HBox buildGhostAction() {
+        HBox button = new HBox(12);
+        button.setAlignment(Pos.CENTER_LEFT);
+        button.setPadding(new Insets(14, 20, 14, 20));
+        button.setCursor(Cursor.HAND);
+        button.setStyle("-fx-background-color: rgba(255,255,255,0.08); -fx-border-color: rgba(255,255,255,0.18); -fx-border-width: 1; -fx-background-radius: 10; -fx-border-radius: 10;");
+
+        StackPane iconBox = new StackPane();
+        iconBox.setPrefSize(30, 30);
+        iconBox.setMinSize(30, 30);
+        iconBox.setMaxSize(30, 30);
+        iconBox.setStyle("-fx-background-color: rgba(255,255,255,0.10); -fx-background-radius: 7;");
+        Label icon = new Label("📋");
+        icon.setStyle("-fx-font-size: 16; -fx-font-family: 'Segoe UI';");
+        iconBox.getChildren().add(icon);
+
+        VBox textBox = new VBox(1);
+        Label title = new Label("Leer instrucciones");
+        title.setStyle("-fx-text-fill: #f1f5f9; -fx-font-size: 14; -fx-font-weight: bold; -fx-font-family: 'Segoe UI';");
+        Label subtitle = new Label("Cómo funciona el simulador");
+        subtitle.setStyle("-fx-text-fill: #f1f5f9; -fx-font-size: 11; -fx-font-family: 'Segoe UI'; -fx-opacity: 0.65;");
+        textBox.getChildren().addAll(title, subtitle);
+
+        button.getChildren().addAll(iconBox, textBox);
+
+        button.setOnMouseEntered(e -> button.setStyle("-fx-background-color: rgba(255,255,255,0.13); -fx-border-color: rgba(255,255,255,0.18); -fx-border-width: 1; -fx-background-radius: 10; -fx-border-radius: 10;"));
+        button.setOnMouseExited(e -> button.setStyle("-fx-background-color: rgba(255,255,255,0.08); -fx-border-color: rgba(255,255,255,0.18); -fx-border-width: 1; -fx-background-radius: 10; -fx-border-radius: 10;"));
+        button.setOnMouseClicked(e -> openInstructions());
+        return button;
+    }
+
+    private HBox buildExitAction() {
+        HBox button = new HBox(12);
+        button.setAlignment(Pos.CENTER_LEFT);
+        button.setPadding(new Insets(14, 20, 14, 20));
+        button.setCursor(Cursor.HAND);
+        button.setStyle(
+            "-fx-background-color: rgba(127,29,29,0.22); " +
+            "-fx-border-color: rgba(248,113,113,0.35); " +
+            "-fx-border-width: 1; " +
+            "-fx-background-radius: 10; " +
+            "-fx-border-radius: 10;"
+        );
+
+        StackPane iconBox = new StackPane();
+        iconBox.setPrefSize(30, 30);
+        iconBox.setMinSize(30, 30);
+        iconBox.setMaxSize(30, 30);
+        iconBox.setStyle("-fx-background-color: rgba(0,0,0,0.18); -fx-background-radius: 7;");
+        Label icon = new Label("⏻");
+        icon.setStyle("-fx-font-size: 16; -fx-text-fill: #fecaca; -fx-font-family: 'Segoe UI';");
+        iconBox.getChildren().add(icon);
+
+        VBox textBox = new VBox(1);
+        Label title = new Label("Salir del sistema");
+        title.setStyle("-fx-text-fill: #fecaca; -fx-font-size: 14; -fx-font-weight: bold; -fx-font-family: 'Segoe UI';");
+        Label subtitle = new Label("Cerrar la aplicación");
+        subtitle.setStyle("-fx-text-fill: #fecaca; -fx-font-size: 11; -fx-font-family: 'Segoe UI'; -fx-opacity: 0.75;");
+        textBox.getChildren().addAll(title, subtitle);
+
+        button.getChildren().addAll(iconBox, textBox);
+
+        button.setOnMouseEntered(e -> button.setStyle(
+            "-fx-background-color: rgba(153,27,27,0.38); " +
+            "-fx-border-color: rgba(248,113,113,0.55); " +
+            "-fx-border-width: 1; " +
+            "-fx-background-radius: 10; " +
+            "-fx-border-radius: 10;"
+        ));
+        button.setOnMouseExited(e -> button.setStyle(
+            "-fx-background-color: rgba(127,29,29,0.22); " +
+            "-fx-border-color: rgba(248,113,113,0.35); " +
+            "-fx-border-width: 1; " +
+            "-fx-background-radius: 10; " +
+            "-fx-border-radius: 10;"
+        ));
+        button.setOnMouseClicked(e -> Platform.exit());
+        return button;
+    }
+
+    private void openPrisma() {
+        AdminViewNew adminViewNew = new AdminViewNew(stage);
+        Scene scene = new Scene(adminViewNew.getView(), 1500, 900);
+        Theme.apply(scene);
+        stage.setScene(scene);
+        stage.setMaximized(true);
+        stage.setFullScreen(true);
+    }
+
+    private void openInstructions() {
+        InstructionsView instructionsView = new InstructionsView(stage);
+        Scene scene = new Scene(instructionsView.getView(), 1500, 900);
+        Theme.apply(scene);
+        stage.setScene(scene);
+        stage.setMaximized(true);
+        stage.setFullScreen(true);
+    }
+
+    public StackPane getView() {
         return view;
+    }
+
+    public void applyTheme(Scene scene) {
+        Theme.apply(scene);
+    }
+
+    public void goBackToLogin() {
+        LoginView loginView = new LoginView(stage);
+        Scene scene = new Scene(loginView.getView(), 1500, 900);
+        applyTheme(scene);
+        stage.setScene(scene);
+        stage.setMaximized(true);
+        stage.setFullScreen(true);
     }
 }

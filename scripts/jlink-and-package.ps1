@@ -70,7 +70,7 @@ Write-Host "Intentando arrancar el JAR con la runtime (esto debe mostrar errores
 Write-Host "Ejecutando jpackage para crear app-image..."
 $jpackage = Join-Path $env:JAVA_HOME 'bin\jpackage.exe'
 if (-not (Test-Path $jpackage)) { Write-Error "ERROR: jpackage no encontrado en $jpackage"; exit 1 }
-& $jpackage --type app-image --input .\target\package --main-jar PRISMA-DAE.jar --main-class com.prisma.App --name PRISMA-DAE --runtime-image jlink-runtime --app-version 1.0.0 --dest .\target\dist
+& $jpackage --type app-image --input .\target\package --main-jar PRISMA-DAE.jar --main-class com.prisma.Launcher --name PRISMA-DAE --runtime-image jlink-runtime --app-version 1.0.0 --dest .\target\dist
 if ($LASTEXITCODE -ne 0) { Write-Error "jpackage falló (exit $LASTEXITCODE)"; exit $LASTEXITCODE }
 
 Write-Host "Empaquetado completado. Salida en target\dist\PRISMA-DAE" 

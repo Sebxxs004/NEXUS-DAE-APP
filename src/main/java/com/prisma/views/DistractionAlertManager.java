@@ -14,11 +14,17 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ThreadLocalRandom;
 
+import org.kordamp.ikonli.fontawesome5.FontAwesomeSolid;
+import org.kordamp.ikonli.javafx.FontIcon;
+
+import javafx.animation.FadeTransition;
 import javafx.animation.KeyFrame;
+import javafx.animation.ParallelTransition;
 import javafx.animation.ScaleTransition;
 import javafx.animation.Timeline;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
+import javafx.scene.Cursor;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
@@ -29,16 +35,22 @@ import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.input.ScrollEvent;
-import javafx.scene.paint.Color;
+import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
+import javafx.scene.layout.Region;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
+import javafx.scene.paint.Color;
+import javafx.scene.shape.Circle;
+import javafx.scene.shape.Rectangle;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
 import javafx.stage.StageStyle;
 
 public final class DistractionAlertManager {
+    private static final String UI_FONT = "'Segoe UI'";
+
     private static final java.time.Duration CHECK_INTERVAL = java.time.Duration.ofMinutes(10);
     private static final java.time.Duration IMAGE_WINDOW_DURATION = java.time.Duration.ofMinutes(3);
     private static final java.time.Duration READ_PENALTY = java.time.Duration.ofMinutes(2);
@@ -116,6 +128,17 @@ public final class DistractionAlertManager {
         }
     }
 
+    /** Lanza de inmediato la alerta de correo (para pruebas desde login u otras pantallas). */
+    public static void triggerTestAlertNow() {
+        synchronized (LOCK) {
+            if (ownerStage == null || exhausted || alertActive) {
+                return;
+            }
+            launchNotificationStage();
+            resetCycle();
+        }
+    }
+
     public static List<AlertRecord> getAlertRecords() {
         synchronized (LOCK) {
             return Collections.unmodifiableList(new ArrayList<>(ALERT_RECORDS));
@@ -182,8 +205,7 @@ public final class DistractionAlertManager {
     private static void launchNotificationStage() {
         currentImagePath = selectNextImage();
         if (currentImagePath == null) {
-            exhausted = true;
-            stopTimelineOnly();
+            markExhausted();
             return;
         }
 
@@ -204,32 +226,110 @@ public final class DistractionAlertManager {
         Stage stage = createBaseStage();
         StackPane root = new StackPane();
 
-        ImageView background = new ImageView(loadImageFromResource("/styles/assets/correo-electronico.jpeg"));
-        background.setPreserveRatio(false);
-        background.fitWidthProperty().bind(stage.widthProperty());
-        background.fitHeightProperty().bind(stage.heightProperty());
-        background.setOpacity(0.88);
-        background.setMouseTransparent(true);
+        ImageView background = sharedBackground(stage);
+        Rectangle overlay = darkOverlay(stage);
 
-        VBox card = new VBox(18);
-        card.setAlignment(Pos.CENTER);
-        card.setPadding(new Insets(28));
-        card.setMaxWidth(700);
-        card.setStyle("-fx-background-color: rgba(5, 10, 20, 0.88); -fx-background-radius: 24; -fx-border-radius: 24; -fx-border-width: 1.5; -fx-border-color: rgba(248, 113, 113, 0.45);");
+        HBox cardHeader = new HBox(12);
+        cardHeader.setAlignment(Pos.CENTER_LEFT);
+        cardHeader.setPadding(new Insets(16, 22, 16, 22));
+        cardHeader.setStyle(
+                "-fx-background-color: rgba(220,38,38,0.15); " +
+                "-fx-border-color: transparent transparent rgba(248,113,113,0.18) transparent; " +
+                "-fx-border-width: 0 0 1 0;");
 
-        Label title = new Label("HAS RECIBIDO UN NUEVOO CORREO");
-        title.setWrapText(true);
-        title.setStyle("-fx-text-fill: #fff7ed; -fx-font-size: 28; -fx-font-weight: bold; -fx-font-family: 'Segoe UI';");
+        StackPane headerIcon = makeIconBox(
+                FontAwesomeSolid.ENVELOPE,
+                22,
+                "#fca5a5",
+                "rgba(220,38,38,0.20)",
+                "rgba(248,113,113,0.30)");
 
-        Label message = new Label("¿Deseas leerlo ahora?");
-        message.setStyle("-fx-text-fill: #f8e4c6; -fx-font-size: 18; -fx-font-family: 'Segoe UI';");
+        Label headerTitle = new Label("NUEVO CORREO INSTITUCIONAL");
+        headerTitle.setStyle(
+                "-fx-text-fill: #fff7ed; " +
+                "-fx-font-size: 15; " +
+                "-fx-font-weight: bold; " +
+                "-fx-font-family: " + UI_FONT + ";");
 
-        Label penaltyNotice = new Label("Si decides leerlo, se te restará tiempo.");
-        penaltyNotice.setStyle("-fx-text-fill: #f59e0b; -fx-font-size: 16; -fx-font-weight: bold; -fx-font-family: 'Segoe UI';");
+        Label headerSubtitle = new Label("Sistema ARKIVA · Despacho Fiscal");
+        headerSubtitle.setStyle(
+                "-fx-text-fill: rgba(255,255,255,0.40); " +
+                "-fx-font-size: 12; " +
+                "-fx-font-family: " + UI_FONT + ";");
 
-        Button readButton = new Button("Leer");
-        styleAlertButton(readButton, true);
-        readButton.setOnAction(e -> {
+        VBox headerText = new VBox(2, headerTitle, headerSubtitle);
+        headerText.setAlignment(Pos.CENTER_LEFT);
+
+        Region headerSpacer = new Region();
+        HBox.setHgrow(headerSpacer, Priority.ALWAYS);
+
+        Circle pulseDot = new Circle(4, Color.web("#ef4444"));
+        FadeTransition dotFade = new FadeTransition(javafx.util.Duration.seconds(1.2), pulseDot);
+        dotFade.setFromValue(1.0);
+        dotFade.setToValue(0.20);
+        dotFade.setAutoReverse(true);
+        dotFade.setCycleCount(Timeline.INDEFINITE);
+
+        ScaleTransition dotScale = new ScaleTransition(javafx.util.Duration.seconds(1.2), pulseDot);
+        dotScale.setFromX(1.0);
+        dotScale.setFromY(1.0);
+        dotScale.setToX(1.6);
+        dotScale.setToY(1.6);
+        dotScale.setAutoReverse(true);
+        dotScale.setCycleCount(Timeline.INDEFINITE);
+
+        ParallelTransition pulse = new ParallelTransition(dotFade, dotScale);
+        pulse.play();
+
+        cardHeader.getChildren().addAll(headerIcon, headerText, headerSpacer, pulseDot);
+
+        Label introLabel = new Label("Ha llegado un nuevo correo a su bandeja.");
+        introLabel.setWrapText(true);
+        introLabel.setAlignment(Pos.CENTER);
+        introLabel.setMaxWidth(Double.MAX_VALUE);
+        introLabel.setStyle(
+                "-fx-text-fill: #f1f5f9; " +
+                "-fx-font-size: 15; " +
+                "-fx-font-family: " + UI_FONT + ";");
+
+        Label questionLabel = new Label("¿Desea leerlo ahora?");
+        questionLabel.setAlignment(Pos.CENTER);
+        questionLabel.setMaxWidth(Double.MAX_VALUE);
+        questionLabel.setStyle(
+                "-fx-text-fill: #f8fafc; " +
+                "-fx-font-size: 18; " +
+                "-fx-font-weight: bold; " +
+                "-fx-font-family: " + UI_FONT + ";");
+
+        FontIcon penaltyClockIcon = new FontIcon(FontAwesomeSolid.CLOCK);
+        penaltyClockIcon.setIconSize(16);
+        penaltyClockIcon.setIconColor(Color.web("#f59e0b"));
+
+        Label penaltyPrefix = new Label("Leer este correo descontará ");
+        penaltyPrefix.setStyle("-fx-text-fill: #fcd34d; -fx-font-size: 13; -fx-font-family: " + UI_FONT + ";");
+
+        Label penaltyValue = new Label("2 minutos");
+        penaltyValue.setStyle(
+                "-fx-text-fill: #fbbf24; " +
+                "-fx-font-size: 13; " +
+                "-fx-font-weight: bold; " +
+                "-fx-font-family: " + UI_FONT + ";");
+
+        Label penaltySuffix = new Label(" del tiempo disponible.");
+        penaltySuffix.setStyle("-fx-text-fill: #fcd34d; -fx-font-size: 13; -fx-font-family: " + UI_FONT + ";");
+
+        HBox penaltyRow = new HBox(8, penaltyClockIcon, penaltyPrefix, penaltyValue, penaltySuffix);
+        penaltyRow.setAlignment(Pos.CENTER_LEFT);
+        penaltyRow.setPadding(new Insets(10, 16, 10, 16));
+        penaltyRow.setStyle(
+                "-fx-background-color: rgba(245,158,11,0.10); " +
+                "-fx-border-color: rgba(245,158,11,0.25); " +
+                "-fx-border-radius: 10; " +
+                "-fx-background-radius: 10; " +
+                "-fx-border-width: 1;");
+
+        HBox readBtn = makeActionBtn(FontAwesomeSolid.ENVELOPE_OPEN, "Leer correo", true);
+        readBtn.setOnMouseClicked(event -> {
             markCurrentRecord("LEIDA", "");
             InvestigationClock.deduct(READ_PENALTY);
             closeWindow(notificationStage);
@@ -237,21 +337,59 @@ public final class DistractionAlertManager {
             launchReadingStage();
         });
 
-        Button skipButton = new Button("Dejar pasar");
-        styleAlertButton(skipButton, false);
-        skipButton.setOnAction(e -> {
+        HBox skipBtn = makeActionBtn(FontAwesomeSolid.TIMES, "Dejar pasar", false);
+        skipBtn.setOnMouseClicked(event -> {
             markCurrentRecord("IGNORADA", "");
             closeWindow(notificationStage);
             notificationStage = null;
             finishCurrentAlert();
         });
 
-        HBox actions = new HBox(12, readButton, skipButton);
-        actions.setAlignment(Pos.CENTER);
+        HBox buttonsRow = new HBox(12, readBtn, skipBtn);
+        buttonsRow.setAlignment(Pos.CENTER);
 
-        card.getChildren().addAll(title, message, penaltyNotice, actions);
-        root.getChildren().addAll(background, card);
-        StackPane.setAlignment(card, Pos.CENTER);
+        VBox cardBody = new VBox(14, introLabel, questionLabel, penaltyRow, buttonsRow);
+        cardBody.setAlignment(Pos.CENTER);
+        cardBody.setPadding(new Insets(24, 28, 20, 28));
+
+        Label cardFooter = new Label(
+                "Este aviso desaparecerá si no toma una decisión en los próximos 60 segundos.");
+        cardFooter.setWrapText(true);
+        cardFooter.setAlignment(Pos.CENTER);
+        cardFooter.setMaxWidth(Double.MAX_VALUE);
+        cardFooter.setPadding(new Insets(12, 22, 12, 22));
+        cardFooter.setStyle(
+                "-fx-text-fill: rgba(255,255,255,0.28); " +
+                "-fx-font-size: 11; " +
+                "-fx-font-family: " + UI_FONT + "; " +
+                "-fx-background-color: rgba(255,255,255,0.02); " +
+                "-fx-border-color: rgba(255,255,255,0.06) transparent transparent transparent; " +
+                "-fx-border-width: 1 0 0 0;");
+
+        VBox notifCard = new VBox(cardHeader, cardBody, cardFooter);
+        notifCard.setSpacing(0);
+        notifCard.setFillWidth(true);
+        notifCard.setMaxWidth(560);
+        notifCard.setPrefWidth(560);
+        notifCard.setMaxHeight(Region.USE_PREF_SIZE);
+        notifCard.setPrefHeight(Region.USE_COMPUTED_SIZE);
+        notifCard.setStyle(
+                "-fx-background-color: rgba(8,5,2,0.90); " +
+                "-fx-background-radius: 20; " +
+                "-fx-border-radius: 20; " +
+                "-fx-border-color: rgba(248,113,113,0.30); " +
+                "-fx-border-width: 1.5;");
+        VBox.setVgrow(cardHeader, Priority.NEVER);
+        VBox.setVgrow(cardBody, Priority.NEVER);
+        VBox.setVgrow(cardFooter, Priority.NEVER);
+
+        StackPane cardHost = new StackPane(notifCard);
+        cardHost.setPickOnBounds(false);
+        cardHost.setMaxSize(Region.USE_PREF_SIZE, Region.USE_PREF_SIZE);
+        StackPane.setAlignment(notifCard, Pos.CENTER);
+
+        root.getChildren().addAll(background, overlay, cardHost);
+        StackPane.setAlignment(cardHost, Pos.CENTER);
 
         stage.setScene(new Scene(root, 1280, 820));
         stage.setMaximized(true);
@@ -273,25 +411,74 @@ public final class DistractionAlertManager {
         readingRemainingSeconds = (int) IMAGE_WINDOW_DURATION.getSeconds();
         responseModeVisible = false;
 
-        ImageView background = new ImageView(loadImageFromResource("/styles/assets/correo-electronico.jpeg"));
-        background.setPreserveRatio(false);
-        background.fitWidthProperty().bind(stage.widthProperty());
-        background.fitHeightProperty().bind(stage.heightProperty());
-        background.setMouseTransparent(true);
+        ImageView background = sharedBackground(stage);
+        Rectangle overlay = darkOverlay(stage);
+
+        HBox penaltyChip = makePill(
+                FontAwesomeSolid.CLOCK,
+                "−2 min descontados",
+                "rgba(239,68,68,0.12)",
+                "rgba(239,68,68,0.25)",
+                "#fca5a5");
+
+        Region topSpacerLeft = new Region();
+        HBox.setHgrow(topSpacerLeft, Priority.ALWAYS);
+
+        Label topTitle = new Label("HAS RECIBIDO UN NUEVO CORREO");
+        topTitle.setStyle(
+                "-fx-text-fill: #fff7ed; " +
+                "-fx-font-size: 15; " +
+                "-fx-font-weight: bold; " +
+                "-fx-font-family: " + UI_FONT + ";");
+
+        Region topSpacerRight = new Region();
+        HBox.setHgrow(topSpacerRight, Priority.ALWAYS);
+
+        FontIcon hourglassIcon = new FontIcon(FontAwesomeSolid.HOURGLASS_HALF);
+        hourglassIcon.setIconSize(14);
+        hourglassIcon.setIconColor(Color.web("#f59e0b"));
+
+        Label countdownPrefix = new Label("Cierra en: ");
+        countdownPrefix.setStyle("-fx-text-fill: #fcd34d; -fx-font-size: 12; -fx-font-family: " + UI_FONT + ";");
+
+        countdownLabel = new Label();
+        countdownLabel.setStyle(
+                "-fx-text-fill: #fcd34d; " +
+                "-fx-font-size: 13; " +
+                "-fx-font-weight: bold; " +
+                "-fx-font-family: " + UI_FONT + ";");
+        updateCountdownLabel();
+
+        HBox countdownBadge = new HBox(7, hourglassIcon, countdownPrefix, countdownLabel);
+        countdownBadge.setAlignment(Pos.CENTER);
+        countdownBadge.setPadding(new Insets(6, 14, 6, 14));
+        countdownBadge.setStyle(
+                "-fx-background-color: rgba(245,158,11,0.12); " +
+                "-fx-border-color: rgba(245,158,11,0.28); " +
+                "-fx-border-radius: 8; " +
+                "-fx-background-radius: 8; " +
+                "-fx-border-width: 1;");
+
+        HBox readingTopBar = new HBox(12, penaltyChip, topSpacerLeft, topTitle, topSpacerRight, countdownBadge);
+        readingTopBar.setAlignment(Pos.CENTER_LEFT);
+        readingTopBar.setPadding(new Insets(12, 20, 12, 20));
+        readingTopBar.setStyle(
+                "-fx-background-color: rgba(8,5,2,0.88); " +
+                "-fx-border-color: transparent transparent rgba(245,158,11,0.18) transparent; " +
+                "-fx-border-width: 0 0 1 0;");
 
         readingImageView = new ImageView(loadImageFromPath(currentImagePath));
         readingImageView.setPreserveRatio(true);
         readingImageView.setSmooth(true);
         readingImageView.setCache(true);
         readingBaseFitWidth = 1100.0;
-        readingBaseFitHeight = 760.0;
+        readingBaseFitHeight = 720.0;
         readingZoom = 1.0;
         applyReadingZoom();
 
         StackPane imageHolder = new StackPane(readingImageView);
         imageHolder.setAlignment(Pos.CENTER);
         imageHolder.setMinSize(0, 0);
-        imageHolder.setStyle("-fx-background-color: rgba(255,255,255,0.02);");
 
         readingImageScroll = new ScrollPane(imageHolder);
         readingImageScroll.setFitToWidth(false);
@@ -299,7 +486,12 @@ public final class DistractionAlertManager {
         readingImageScroll.setPannable(false);
         readingImageScroll.setHbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
         readingImageScroll.setVbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
-        readingImageScroll.getStyleClass().add("case-modal-scroll");
+        readingImageScroll.setStyle(
+                "-fx-background-color: rgba(255,255,255,0.04); " +
+                "-fx-background-radius: 12; " +
+                "-fx-border-radius: 12; " +
+                "-fx-border-color: rgba(255,255,255,0.10); " +
+                "-fx-border-width: 1;");
         readingImageScroll.addEventFilter(ScrollEvent.SCROLL, event -> {
             if (event.isControlDown()) {
                 double factor = event.getDeltaY() > 0 ? 1.12 : 0.9;
@@ -324,22 +516,37 @@ public final class DistractionAlertManager {
             event.consume();
         });
 
-        VBox responseBox = new VBox(10);
-        responseBox.setVisible(false);
-        responseBox.setManaged(false);
-        responseBox.setMaxWidth(760);
-        responseBox.setStyle("-fx-background-color: rgba(8, 12, 24, 0.84); -fx-background-radius: 18; -fx-border-radius: 18; -fx-border-color: rgba(248, 113, 113, 0.3);");
-        responseBox.setPadding(new Insets(16));
+        VBox imageScrollArea = new VBox(readingImageScroll);
+        imageScrollArea.setPadding(new Insets(12, 20, 8, 20));
+        imageScrollArea.setStyle("-fx-background-color: transparent;");
+        VBox.setVgrow(readingImageScroll, Priority.ALWAYS);
+
+        Label responseTitle = new Label("RESPUESTA");
+        responseTitle.setStyle(
+                "-fx-text-fill: rgba(255,255,255,0.40); " +
+                "-fx-font-size: 11; " +
+                "-fx-font-weight: bold; " +
+                "-fx-font-family: " + UI_FONT + ";");
 
         responseArea = new TextArea();
         responseArea.setPromptText("Escribe aquí la respuesta del correo...");
         responseArea.setWrapText(true);
-        responseArea.setPrefRowCount(6);
-        responseArea.getStyleClass().add("text-area");
+        responseArea.setPrefRowCount(3);
+        responseArea.setStyle(
+                "-fx-control-inner-background: #f8fafc; " +
+                "-fx-background-color: #f8fafc; " +
+                "-fx-border-color: rgba(255,255,255,0.14); " +
+                "-fx-border-radius: 8; " +
+                "-fx-background-radius: 8; " +
+                "-fx-border-width: 1; " +
+                "-fx-text-fill: #000000; " +
+                "-fx-highlight-text-fill: #000000; " +
+                "-fx-font-size: 13; " +
+                "-fx-prompt-text-fill: #64748b; " +
+                "-fx-font-family: " + UI_FONT + ";");
 
-        Button saveResponse = new Button("Guardar respuesta");
-        styleAlertButton(saveResponse, true);
-        saveResponse.setOnAction(e -> {
+        HBox saveBtn = makeActionBtn(FontAwesomeSolid.SAVE, "Guardar respuesta", true);
+        saveBtn.setOnMouseClicked(event -> {
             String text = responseArea.getText() == null ? "" : responseArea.getText().trim();
             if (text.isBlank()) {
                 return;
@@ -350,62 +557,34 @@ public final class DistractionAlertManager {
             finishCurrentAlert();
         });
 
-        responseBox.getChildren().addAll(new Label("Respuesta"), responseArea, saveResponse);
-
-        Button answerButton = new Button("Responder");
-        styleAlertButton(answerButton, true);
-        answerButton.setOnAction(e -> {
-            responseModeVisible = true;
-            responseBox.setVisible(true);
-            responseBox.setManaged(true);
-        });
-
-        Button postponeButton = new Button("Posponer respuesta");
-        styleAlertButton(postponeButton, false);
-        postponeButton.setOnAction(e -> {
-            markCurrentRecord(responseModeVisible ? "POSPUESTA" : "LEIDA_SIN_RESPUESTA", responseArea == null ? "" : responseArea.getText());
+        HBox postponeBtn = makeActionBtn(FontAwesomeSolid.CLOCK, "Posponer respuesta", false);
+        postponeBtn.setOnMouseClicked(event -> {
+            String text = responseArea.getText() == null ? "" : responseArea.getText().trim();
+            markCurrentRecord(text.isBlank() ? "LEIDA_SIN_RESPUESTA" : "POSPUESTA", text);
             closeWindow(readingStage);
             readingStage = null;
             finishCurrentAlert();
         });
 
-        HBox actions = new HBox(12, answerButton, postponeButton);
-        actions.setAlignment(Pos.CENTER);
+        HBox actionsRow = new HBox(10, saveBtn, postponeBtn);
+        actionsRow.setAlignment(Pos.CENTER_LEFT);
 
-        countdownLabel = new Label();
-        countdownLabel.setStyle("-fx-text-fill: #fff7ed; -fx-font-size: 18; -fx-font-weight: bold; -fx-font-family: 'Segoe UI';");
-        updateCountdownLabel();
+        VBox responseBar = new VBox(10, responseTitle, responseArea, actionsRow);
+        responseBar.setPadding(new Insets(12, 20, 14, 20));
+        responseBar.setStyle(
+                "-fx-background-color: rgba(8,5,2,0.88); " +
+                "-fx-border-color: rgba(255,255,255,0.07) transparent transparent transparent; " +
+                "-fx-border-width: 1 0 0 0;");
 
-        VBox card = new VBox(14);
-        card.setAlignment(Pos.CENTER);
-        card.setPadding(new Insets(20));
-        card.setMaxWidth(Double.MAX_VALUE);
-        card.setMaxHeight(Double.MAX_VALUE);
-        card.setStyle("-fx-background-color: rgba(12, 10, 8, 0.86); -fx-background-radius: 24; -fx-border-radius: 24; -fx-border-color: rgba(245, 158, 11, 0.38); -fx-border-width: 1.5;");
+        BorderPane mainShell = new BorderPane();
+        mainShell.setStyle("-fx-background-color: transparent;");
+        mainShell.setTop(readingTopBar);
+        mainShell.setCenter(imageScrollArea);
+        mainShell.setBottom(responseBar);
 
-        Label title = new Label("HAS RECIBIDO UN NUEVO CORREO");
-        title.setStyle("-fx-text-fill: #fff7ed; -fx-font-size: 30; -fx-font-weight: bold; -fx-font-family: 'Segoe UI';");
+        StackPane root = new StackPane(background, overlay, mainShell);
 
-        Label subtitle = new Label("Esta ventana se cerrará en: ");
-        subtitle.setStyle("-fx-text-fill: #f8e4c6; -fx-font-size: 18; -fx-font-family: 'Segoe UI';");
-
-        Label warning = new Label("Leer este correo descuenta tiempo del sistema.");
-        warning.setStyle("-fx-text-fill: #f59e0b; -fx-font-size: 16; -fx-font-weight: bold; -fx-font-family: 'Segoe UI';");
-
-        VBox.setVgrow(readingImageScroll, Priority.ALWAYS);
-        readingImageScroll.setMaxWidth(Double.MAX_VALUE);
-        readingImageScroll.setMaxHeight(Double.MAX_VALUE);
-        readingImageScroll.setPrefViewportWidth(1220);
-        readingImageScroll.setPrefViewportHeight(720);
-        readingImageScroll.setStyle("-fx-background-color: rgba(255,255,255,0.06); -fx-background-radius: 18; -fx-border-radius: 18; -fx-border-color: rgba(255,255,255,0.12);");
-
-        card.getChildren().addAll(title, subtitle, warning, countdownLabel, readingImageScroll, responseBox, actions);
-
-        StackPane root = new StackPane(background, card);
-        root.setPadding(new Insets(0));
-        StackPane.setAlignment(card, Pos.CENTER);
-
-        stage.setScene(new Scene(root));
+        stage.setScene(new Scene(root, 1280, 820));
         stage.setMaximized(true);
         stage.setFullScreen(true);
         stage.setFullScreenExitHint("");
@@ -437,10 +616,8 @@ public final class DistractionAlertManager {
             readingRemainingSeconds = Math.max(0, readingRemainingSeconds - 1);
             updateCountdownLabel();
             if (readingRemainingSeconds <= 0) {
-                markCurrentRecord(responseModeVisible && responseArea != null && !responseArea.getText().isBlank()
-                        ? "RESPONDIDA"
-                        : "AUTO_CERRADA",
-                        responseArea == null ? "" : responseArea.getText());
+                String responseText = responseArea == null ? "" : responseArea.getText().trim();
+                markCurrentRecord(responseText.isBlank() ? "AUTO_CERRADA" : "RESPONDIDA", responseText);
                 closeWindow(readingStage);
                 readingStage = null;
                 finishCurrentAlert();
@@ -461,7 +638,9 @@ public final class DistractionAlertManager {
             countdownLabel = null;
             responseModeVisible = false;
             readingRemainingSeconds = 0;
-            resetCycle();
+            if (!exhausted) {
+                resetCycle();
+            }
         }
     }
 
@@ -482,11 +661,7 @@ public final class DistractionAlertManager {
     }
 
     private static int currentProbability() {
-        return switch (probabilityTier) {
-            case 0 -> 25;
-            case 1 -> 50;
-            default -> 100;
-        };
+        return 100;
     }
 
     private static void advanceProbabilityTier() {
@@ -584,6 +759,16 @@ public final class DistractionAlertManager {
             } catch (IOException ignored) {
             }
         }
+
+        if (AVAILABLE_IMAGES.isEmpty()) {
+            markExhausted();
+        }
+    }
+
+    private static void markExhausted() {
+        exhausted = true;
+        stopTimelineOnly();
+        nextEvaluationAt = java.time.Instant.MAX;
     }
 
     private static boolean isBackgroundLikeImage(Path path) {
@@ -646,7 +831,118 @@ public final class DistractionAlertManager {
         }
         int minutes = Math.max(0, readingRemainingSeconds / 60);
         int seconds = Math.max(0, readingRemainingSeconds % 60);
-        countdownLabel.setText(String.format("Esta ventana se cerrará en: %02d:%02d", minutes, seconds));
+        countdownLabel.setText(String.format("%02d:%02d", minutes, seconds));
+    }
+
+    private static ImageView sharedBackground(Stage stage) {
+        ImageView background = new ImageView(loadImageFromResource("/styles/assets/correo-electronico.jpeg"));
+        background.setPreserveRatio(false);
+        background.fitWidthProperty().bind(stage.widthProperty());
+        background.fitHeightProperty().bind(stage.heightProperty());
+        background.setOpacity(0.45);
+        background.setMouseTransparent(true);
+        return background;
+    }
+
+    private static Rectangle darkOverlay(Stage stage) {
+        Rectangle overlay = new Rectangle();
+        overlay.setFill(Color.rgb(8, 5, 2, 0.58));
+        overlay.widthProperty().bind(stage.widthProperty());
+        overlay.heightProperty().bind(stage.heightProperty());
+        overlay.setMouseTransparent(true);
+        return overlay;
+    }
+
+    private static StackPane makeIconBox(
+            FontAwesomeSolid icon,
+            int size,
+            String color,
+            String bgRgba,
+            String borderRgba) {
+        FontIcon fontIcon = new FontIcon(icon);
+        fontIcon.setIconSize(size);
+        fontIcon.setIconColor(Color.web(color));
+
+        StackPane box = new StackPane(fontIcon);
+        box.setMinSize(44, 44);
+        box.setPrefSize(44, 44);
+        box.setMaxSize(44, 44);
+        box.setAlignment(Pos.CENTER);
+        box.setStyle(
+                "-fx-background-color: " + bgRgba + "; " +
+                "-fx-background-radius: 10; " +
+                "-fx-border-radius: 10; " +
+                "-fx-border-color: " + borderRgba + "; " +
+                "-fx-border-width: 1;");
+        return box;
+    }
+
+    private static HBox makePill(
+            FontAwesomeSolid icon,
+            String text,
+            String bgRgba,
+            String borderRgba,
+            String textColor) {
+        FontIcon fontIcon = new FontIcon(icon);
+        fontIcon.setIconSize(13);
+        fontIcon.setIconColor(Color.web(textColor));
+
+        Label label = new Label(text);
+        label.setStyle(
+                "-fx-text-fill: " + textColor + "; " +
+                "-fx-font-size: 12; " +
+                "-fx-font-weight: bold; " +
+                "-fx-font-family: " + UI_FONT + ";");
+
+        HBox pill = new HBox(6, fontIcon, label);
+        pill.setAlignment(Pos.CENTER);
+        pill.setPadding(new Insets(5, 12, 5, 12));
+        pill.setStyle(
+                "-fx-background-color: " + bgRgba + "; " +
+                "-fx-border-color: " + borderRgba + "; " +
+                "-fx-border-radius: 6; " +
+                "-fx-background-radius: 6; " +
+                "-fx-border-width: 1;");
+        return pill;
+    }
+
+    private static HBox makeActionBtn(FontAwesomeSolid icon, String label, boolean primary) {
+        FontIcon fontIcon = new FontIcon(icon);
+        fontIcon.setIconSize(16);
+        fontIcon.setIconColor(Color.web(primary ? "#0c0804" : "#e2e8f0"));
+
+        Label textLabel = new Label(label);
+        textLabel.setStyle(
+                "-fx-text-fill: " + (primary ? "#0c0804" : "#e2e8f0") + "; " +
+                "-fx-font-size: 14; " +
+                "-fx-font-weight: bold; " +
+                "-fx-font-family: " + UI_FONT + ";");
+
+        HBox button = new HBox(8, fontIcon, textLabel);
+        button.setAlignment(Pos.CENTER);
+        button.setPadding(new Insets(13, 16, 13, 16));
+        button.setMinWidth(200);
+        button.setCursor(Cursor.HAND);
+        button.setStyle(
+                "-fx-background-color: " + (primary ? "#e09d10" : "rgba(255,255,255,0.08)") + "; " +
+                "-fx-background-radius: 10; " +
+                "-fx-border-radius: 10; " +
+                (primary ? "" : "-fx-border-color: rgba(255,255,255,0.18); -fx-border-width: 1;"));
+
+        button.setOnMouseEntered(event -> {
+            ScaleTransition grow = new ScaleTransition(javafx.util.Duration.millis(130), button);
+            grow.setToX(1.04);
+            grow.setToY(1.04);
+            grow.playFromStart();
+        });
+        button.setOnMouseExited(event -> {
+            ScaleTransition shrink = new ScaleTransition(javafx.util.Duration.millis(130), button);
+            shrink.setToX(1.0);
+            shrink.setToY(1.0);
+            shrink.playFromStart();
+        });
+
+        return button;
     }
 
     private static String escapeJson(String value) {

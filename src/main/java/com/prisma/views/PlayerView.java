@@ -12,20 +12,22 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.stream.Collectors;
 
-import org.apache.pdfbox.pdmodel.PDDocument;
-import org.apache.pdfbox.pdmodel.PDPage;
-import org.apache.pdfbox.pdmodel.PDPageContentStream;
-import org.apache.pdfbox.pdmodel.common.PDRectangle;
-import org.apache.pdfbox.pdmodel.font.PDType1Font;
-
 import com.prisma.data.CasoRepository;
 import com.prisma.models.Caso;
+import com.prisma.reports.InvestigationReportPdfExporter;
+import com.prisma.reports.InvestigationReportPdfExporter.AlertEntry;
+import com.prisma.reports.InvestigationReportPdfExporter.ConnectionEntry;
+import com.prisma.reports.InvestigationReportPdfExporter.DecisionEntry;
+import com.prisma.reports.InvestigationReportPdfExporter.GroupEntry;
+import com.prisma.reports.InvestigationReportPdfExporter.IsolatedEntry;
+import com.prisma.reports.InvestigationReportPdfExporter.ReportData;
 import com.prisma.ui.Theme;
 
 import javafx.animation.AnimationTimer;
@@ -43,21 +45,24 @@ import javafx.scene.Scene;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
 import javafx.scene.control.ButtonType;
+import javafx.scene.control.CheckBox;
 import javafx.scene.control.ColorPicker;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
+import javafx.scene.control.ContentDisplay;
+import javafx.scene.control.ListCell;
 import javafx.scene.control.ListView;
 import javafx.scene.control.ProgressIndicator;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
-import javafx.scene.control.TextInputDialog;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.input.ScrollEvent;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Pane;
+import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
@@ -105,6 +110,18 @@ public class PlayerView {
     private final StackPane connectionDialogOverlay;
     private final StackPane pdfLoadingOverlay;
     private final StackPane isolatedNodesOverlay;
+    private final StackPane decisionOverlay;
+    private final VBox decisionOptionsContainer;
+    private final VBox decisionJustificationsContainer;
+    private final ScrollPane decisionJustificationsScroll;
+    private final Map<String, CheckBox> decisionOptionCheckboxes = new LinkedHashMap<>();
+    private final Map<String, TextArea> decisionJustificationFields = new HashMap<>();
+    private final Label decisionOverlayTitle;
+    private String pendingDecisionGroupSignature;
+    private GroupMeta pendingDecisionMeta;
+    private String pendingDecisionGroupName;
+    private String pendingDecisionReason;
+    private Button pendingDecisionColorButton;
     private final Label connectionDialogTitle;
     private final Label connectionDialogSubtitle;
     private final ComboBox<String> connectionBasisBox;
@@ -115,6 +132,7 @@ public class PlayerView {
     private final Map<CaseNode, TextArea> isolatedNodeReasonFields = new HashMap<>();
     private final VBox sidebar;
     private final ListView<String> connectionList;
+    private final Label connectionsSectionTitle;
     private final ListView<GroupCluster> groupList;
     private final VBox groupCardsContainer;
     private final ScrollPane groupScrollPane;
@@ -357,6 +375,7 @@ public class PlayerView {
         connectionList = new ListView<>();
         connectionList.getStyleClass().add("connection-list");
         connectionList.setPrefHeight(190);
+        installConnectionListCellFactory();
 
         groupList = new ListView<>();
         groupList.getStyleClass().add("group-list");
@@ -390,14 +409,17 @@ public class PlayerView {
 
         groupReasonField = new TextArea();
         groupReasonField.getStyleClass().add("text-area");
-        groupReasonField.setPromptText("Justificación del grupo");
+        groupReasonField.setPromptText("Escribe aquí tu justificación...");
         groupReasonField.setPrefRowCount(4);
 
         Button refreshButton = new Button("Recalcular grupos");
         refreshButton.getStyleClass().add("secondary-button");
         refreshButton.setOnAction(e -> refreshGroups());
 
-        VBox connectionsCard = new VBox(10, new Label("Conexiones (1)"), connectionList);
+        connectionsSectionTitle = new Label("Conexiones (0)");
+        connectionsSectionTitle.getStyleClass().add("section-title");
+
+        VBox connectionsCard = new VBox(10, connectionsSectionTitle, connectionList);
         connectionsCard.getStyleClass().add("panel-card");
         connectionsCard.setPadding(new Insets(14));
         VBox.setVgrow(connectionList, javafx.scene.layout.Priority.ALWAYS);
@@ -652,7 +674,73 @@ public class PlayerView {
         isolatedNodesOverlay.setAlignment(Pos.CENTER);
         StackPane.setAlignment(isolatedNodesCard, Pos.CENTER);
 
-        moduleHost.getChildren().addAll(boardModule, connectionDialogOverlay, isolatedNodesOverlay, pdfLoadingOverlay);
+        // ── Decision overlay modal ──
+        decisionOverlayTitle = new Label("¿Qué vas a decidir ahora?");
+        decisionOverlayTitle.getStyleClass().add("section-title");
+
+        Label decisionSubtitle = new Label("Selecciona una o más opciones y justifica cada decisión:");
+        decisionSubtitle.getStyleClass().add("app-subtitle");
+        decisionSubtitle.setWrapText(true);
+
+        decisionOptionsContainer = new VBox(8);
+        decisionOptionsContainer.setFillWidth(true);
+
+        for (DecisionOptionDef option : DECISION_OPTIONS) {
+            CheckBox optionCheck = new CheckBox(option.label());
+            optionCheck.setWrapText(true);
+            optionCheck.setMaxWidth(Double.MAX_VALUE);
+            optionCheck.setStyle(
+                    "-fx-font-size: 13px; " +
+                    "-fx-text-fill: #dbeafe; " +
+                    "-fx-padding: 4 0 4 0;");
+            optionCheck.selectedProperty().addListener((obs, wasSelected, isSelected) ->
+                    toggleDecisionJustificationRow(option, isSelected));
+            decisionOptionCheckboxes.put(option.id(), optionCheck);
+            decisionOptionsContainer.getChildren().add(optionCheck);
+        }
+
+        decisionJustificationsContainer = new VBox(12);
+        decisionJustificationsContainer.setFillWidth(true);
+
+        decisionJustificationsScroll = new ScrollPane(decisionJustificationsContainer);
+        decisionJustificationsScroll.getStyleClass().add("group-scroll");
+        decisionJustificationsScroll.setFitToWidth(true);
+        decisionJustificationsScroll.setPrefViewportHeight(200);
+        decisionJustificationsScroll.setVisible(false);
+        decisionJustificationsScroll.setManaged(false);
+
+        Button confirmDecisionButton = new Button("Aceptar");
+        confirmDecisionButton.getStyleClass().add("primary-button");
+        confirmDecisionButton.setOnAction(e -> confirmDecisionFromOverlay());
+
+        Button cancelDecisionButton = new Button("Cancelar");
+        cancelDecisionButton.getStyleClass().add("ghost-button");
+        cancelDecisionButton.setOnAction(e -> hideDecisionOverlay());
+
+        HBox decisionButtons = new HBox(10, confirmDecisionButton, cancelDecisionButton);
+        decisionButtons.setAlignment(Pos.CENTER_LEFT);
+
+        VBox decisionCard = new VBox(12,
+                decisionOverlayTitle,
+                decisionSubtitle,
+                decisionOptionsContainer,
+                decisionJustificationsScroll,
+                decisionButtons);
+        decisionCard.getStyleClass().add("panel-card");
+        decisionCard.setPadding(new Insets(18));
+        decisionCard.setMaxWidth(620);
+        decisionCard.setMaxHeight(Region.USE_PREF_SIZE);
+        decisionCard.setMinHeight(Region.USE_PREF_SIZE);
+        decisionCard.setPrefHeight(Region.USE_COMPUTED_SIZE);
+
+        decisionOverlay = new StackPane(decisionCard);
+        decisionOverlay.setVisible(false);
+        decisionOverlay.setManaged(false);
+        decisionOverlay.setStyle("-fx-background-color: rgba(3, 8, 20, 0.76);");
+        decisionOverlay.setAlignment(Pos.CENTER);
+        StackPane.setAlignment(decisionCard, Pos.CENTER);
+
+        moduleHost.getChildren().addAll(boardModule, connectionDialogOverlay, isolatedNodesOverlay, decisionOverlay, pdfLoadingOverlay);
 
         VBox content = new VBox(14, topBar, instructionLabel, moduleHost);
         view.setCenter(content);
@@ -916,7 +1004,84 @@ public class PlayerView {
         connectionLayer.getChildren().setAll(connections.stream()
                 .map(connection -> connection.line)
                 .collect(Collectors.toList()));
+
+        if (connectionsSectionTitle != null) {
+            connectionsSectionTitle.setText("Conexiones (" + connections.size() + ")");
+        }
         updateUngroupedNodesLabel();
+    }
+
+    private void installConnectionListCellFactory() {
+        connectionList.setCellFactory(listView -> new ListCell<>() {
+            private final Label summaryLabel = new Label();
+            private final Button deleteButton = new Button("Eliminar");
+            private final HBox row = new HBox(10, summaryLabel, deleteButton);
+
+            {
+                summaryLabel.setWrapText(true);
+                summaryLabel.setMaxWidth(Double.MAX_VALUE);
+                summaryLabel.getStyleClass().add("app-subtitle");
+                HBox.setHgrow(summaryLabel, Priority.ALWAYS);
+                row.setAlignment(Pos.CENTER_LEFT);
+
+                deleteButton.getStyleClass().add("danger-button");
+                deleteButton.setMinWidth(Region.USE_PREF_SIZE);
+                deleteButton.setOnAction(event -> {
+                    int index = getIndex();
+                    if (index >= 0) {
+                        removeConnectionAt(index);
+                    }
+                    event.consume();
+                });
+            }
+
+            @Override
+            protected void updateItem(String item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty || item == null) {
+                    setText(null);
+                    setGraphic(null);
+                    return;
+                }
+                summaryLabel.setText(item);
+                deleteButton.setDisable(investigationFinished);
+                setText(null);
+                setGraphic(row);
+            }
+        });
+    }
+
+    public void removeConnectionAt(int index) {
+        if (investigationFinished) {
+            showAlert(Alert.AlertType.INFORMATION, "La investigación ya finalizó; no puedes eliminar conexiones.");
+            return;
+        }
+        if (index < 0 || index >= connections.size()) {
+            return;
+        }
+
+        Connection removed = connections.remove(index);
+        refreshConnections();
+        refreshGroups();
+        restoreMovementForUngroupedNodes();
+        persistInvestigationSnapshot();
+
+        statusLabel.setText("Conexión eliminada entre "
+                + removed.from.getCaso().getNombre()
+                + " y "
+                + removed.to.getCaso().getNombre()
+                + ".");
+    }
+
+    private void restoreMovementForUngroupedNodes() {
+        for (CaseNode node : nodes) {
+            if (!isGroupedNode(node) && !node.dragging) {
+                double speed = Math.hypot(node.vx, node.vy);
+                if (speed < TARGET_SPEED * 0.35) {
+                    setRandomVelocity(node);
+                }
+            }
+        }
     }
 
     private void refreshGroups() {
@@ -952,8 +1117,39 @@ public class PlayerView {
         long ungroupedCount = nodes.stream()
                 .filter(node -> !isGroupedNode(node))
                 .count();
-        totalNodesLabel.setText("Casos totales: " + totalCount);
-        ungroupedNodesLabel.setText("Sin grupo: " + ungroupedCount);
+        applySidebarStatChip(totalNodesLabel, totalCount, "Total de casos", false);
+        applySidebarStatChip(ungroupedNodesLabel, ungroupedCount, "Sin grupo", true);
+    }
+
+    public void applySidebarStatChip(Label host, long value, String caption, boolean warning) {
+        Label numberLabel = new Label(String.valueOf(value));
+        numberLabel.setStyle(
+                "-fx-font-size: 22; " +
+                "-fx-font-weight: bold; " +
+                "-fx-text-fill: " + (warning ? "#c8a03b" : "#d0e4ff") + "; " +
+                "-fx-font-family: 'Segoe UI', sans-serif;");
+
+        Label captionLabel = new Label(caption);
+        captionLabel.setWrapText(true);
+        captionLabel.setStyle(
+                "-fx-font-size: 10; " +
+                "-fx-text-fill: #7ba3d8; " +
+                "-fx-font-family: 'Segoe UI', sans-serif;");
+
+        VBox chipContent = new VBox(2, numberLabel, captionLabel);
+        chipContent.setAlignment(Pos.CENTER);
+
+        host.setGraphic(chipContent);
+        host.setText(null);
+        host.setContentDisplay(ContentDisplay.GRAPHIC_ONLY);
+        host.setAlignment(Pos.CENTER);
+        host.setStyle(
+                "-fx-background-color: #0a1a3a; " +
+                "-fx-border-color: " + (warning ? "#c8a03b" : "#1a3a7a") + "; " +
+                "-fx-border-radius: 6; " +
+                "-fx-background-radius: 6; " +
+                "-fx-padding: 8 10 8 10; " +
+                "-fx-alignment: center;");
     }
 
     private void refreshCasesModule() {
@@ -1382,15 +1578,22 @@ public class PlayerView {
 
         TextArea reasonField = new TextArea(meta.reason);
         reasonField.getStyleClass().add("text-area");
-        reasonField.setPromptText("Justificación general del grupo...");
+        reasonField.setPromptText("Escribe aquí tu justificación...");
         reasonField.setPrefRowCount(3);
-
-        Button finalizeButton = new Button("Finalizar grupo");
-        finalizeButton.getStyleClass().add("primary-button");
-        finalizeButton.setOnAction(e -> saveGroupCard(cluster.signature, nameField, reasonField, meta, colorButton));
 
         Label countLabel = new Label(cluster.members.size() + " casos conectados");
         countLabel.getStyleClass().add("app-subtitle");
+
+        String memberNumbers = cluster.members.stream()
+                .map(node -> "N.º " + node.getDisplayNumber())
+                .collect(Collectors.joining(" · "));
+        Label membersIndexLabel = new Label("Números en tablero: " + memberNumbers);
+        membersIndexLabel.getStyleClass().add("app-subtitle");
+        membersIndexLabel.setWrapText(true);
+
+        Label membersNamesLabel = new Label(buildGroupMembersSummary(cluster));
+        membersNamesLabel.getStyleClass().add("muted-text");
+        membersNamesLabel.setWrapText(true);
 
         VBox card = new VBox(8);
         card.getStyleClass().add("group-card");
@@ -1399,20 +1602,72 @@ public class PlayerView {
         HBox headerRow = new HBox(10, colorButton, nameField);
         headerRow.setAlignment(Pos.CENTER_LEFT);
 
-        card.getChildren().addAll(
-                headerRow,
-                reasonField,
-                finalizeButton,
-                countLabel
-        );
-
-        if (investigationFinished) {
+        if (meta.finalized) {
+            Label finalizedLabel = new Label("✔ Grupo finalizado");
+            finalizedLabel.getStyleClass().add("app-subtitle");
+            finalizedLabel.setStyle("-fx-text-fill: #22c55e; -fx-font-weight: bold;");
+            VBox decisionInfo = new VBox(4);
+            if (meta.mode != null && !meta.mode.isBlank()) {
+                Label decisionLabel = new Label("Decisiones: " + meta.mode);
+                decisionLabel.getStyleClass().add("app-subtitle");
+                decisionLabel.setWrapText(true);
+                decisionInfo.getChildren().add(decisionLabel);
+            }
+            if (meta.decisionDetail != null && !meta.decisionDetail.isBlank()) {
+                Label detailLabel = new Label("Justificaciones:\n" + meta.decisionDetail);
+                detailLabel.getStyleClass().add("app-subtitle");
+                detailLabel.setWrapText(true);
+                decisionInfo.getChildren().add(detailLabel);
+            }
+            card.getChildren().addAll(
+                    headerRow,
+                    membersIndexLabel,
+                    membersNamesLabel,
+                    reasonField,
+                    finalizedLabel,
+                    decisionInfo,
+                    countLabel
+            );
             nameField.setDisable(true);
             reasonField.setDisable(true);
             colorButton.setDisable(true);
-            finalizeButton.setDisable(true);
+        } else {
+            Button finalizeButton = new Button("Finalizar grupo");
+            finalizeButton.getStyleClass().add("primary-button");
+            finalizeButton.setOnAction(e -> saveGroupCard(cluster.signature, nameField, reasonField, meta, colorButton));
+            card.getChildren().addAll(
+                    headerRow,
+                    membersIndexLabel,
+                    membersNamesLabel,
+                    reasonField,
+                    finalizeButton,
+                    countLabel
+            );
+            if (investigationFinished) {
+                nameField.setDisable(true);
+                reasonField.setDisable(true);
+                colorButton.setDisable(true);
+                finalizeButton.setDisable(true);
+            }
         }
         return card;
+    }
+
+    private String buildGroupMembersSummary(GroupCluster cluster) {
+        return cluster.members.stream()
+                .map(node -> "N.º " + node.getDisplayNumber() + " → " + shortenCaseName(node.getCaso().getNombre(), 22))
+                .collect(Collectors.joining("\n"));
+    }
+
+    private String shortenCaseName(String name, int maxLength) {
+        if (name == null || name.isBlank()) {
+            return "Sin nombre";
+        }
+        String trimmed = name.trim();
+        if (trimmed.length() <= maxLength) {
+            return trimmed;
+        }
+        return trimmed.substring(0, Math.max(0, maxLength - 3)) + "...";
     }
 
     private void saveGroupCard(String signature, TextField nameField, TextArea reasonField, GroupMeta meta, Button colorButton) {
@@ -1425,19 +1680,143 @@ public class PlayerView {
             showAlert(Alert.AlertType.WARNING, "El grupo debe tener nombre.");
             return;
         }
+
         if (reason.isBlank()) {
-            showAlert(Alert.AlertType.WARNING, "El grupo debe tener justificación.");
+            if (!confirmFinalizeWithoutJustification()) {
+                return;
+            }
+        }
+
+        // Store pending state and show decision modal
+        pendingDecisionGroupSignature = signature;
+        pendingDecisionMeta = meta;
+        pendingDecisionGroupName = groupName;
+        pendingDecisionReason = reason;
+        pendingDecisionColorButton = colorButton;
+        showDecisionOverlay();
+    }
+
+    private boolean confirmFinalizeWithoutJustification() {
+        Alert confirm = new Alert(Alert.AlertType.CONFIRMATION);
+        confirm.setTitle("Finalizar grupo");
+        confirm.setHeaderText("¿Desea finalizar el grupo sin justificación?");
+        confirm.setContentText("Si continúa, deberá registrar la decisión que va a tomar.");
+        if (stage != null) {
+            confirm.initOwner(stage);
+        }
+        return confirm.showAndWait().filter(result -> result == ButtonType.OK || result == ButtonType.YES).isPresent();
+    }
+
+    private void showDecisionOverlay() {
+        decisionOptionCheckboxes.values().forEach(check -> check.setSelected(false));
+        decisionJustificationsContainer.getChildren().clear();
+        decisionJustificationFields.clear();
+        decisionJustificationsScroll.setVisible(false);
+        decisionJustificationsScroll.setManaged(false);
+        decisionOverlay.setVisible(true);
+        decisionOverlay.setManaged(true);
+        decisionOverlay.toFront();
+    }
+
+    private void hideDecisionOverlay() {
+        decisionOverlay.setVisible(false);
+        decisionOverlay.setManaged(false);
+        decisionOptionCheckboxes.values().forEach(check -> check.setSelected(false));
+        decisionJustificationsContainer.getChildren().clear();
+        decisionJustificationFields.clear();
+        pendingDecisionGroupSignature = null;
+        pendingDecisionMeta = null;
+        pendingDecisionGroupName = null;
+        pendingDecisionReason = null;
+        pendingDecisionColorButton = null;
+    }
+
+    private void toggleDecisionJustificationRow(DecisionOptionDef option, boolean selected) {
+        if (selected) {
+            if (decisionJustificationFields.containsKey(option.id())) {
+                return;
+            }
+            Label promptLabel = new Label(option.justificationPrompt());
+            promptLabel.getStyleClass().add("app-subtitle");
+            promptLabel.setWrapText(true);
+            promptLabel.setStyle("-fx-font-weight: bold; -fx-text-fill: #67e8f9;");
+
+            TextArea justificationField = new TextArea();
+            justificationField.getStyleClass().add("text-area");
+            justificationField.setPromptText("Escribe la justificación de esta decisión...");
+            justificationField.setPrefRowCount(2);
+            justificationField.setWrapText(true);
+
+            VBox row = new VBox(6, promptLabel, justificationField);
+            row.getProperties().put("decisionId", option.id());
+            decisionJustificationFields.put(option.id(), justificationField);
+            decisionJustificationsContainer.getChildren().add(row);
+        } else {
+            decisionJustificationsContainer.getChildren().removeIf(node ->
+                    option.id().equals(node.getProperties().get("decisionId")));
+            decisionJustificationFields.remove(option.id());
+        }
+
+        boolean hasSelections = !decisionJustificationFields.isEmpty();
+        decisionJustificationsScroll.setVisible(hasSelections);
+        decisionJustificationsScroll.setManaged(hasSelections);
+    }
+
+    private void confirmDecisionFromOverlay() {
+        StringBuilder selectedDecisions = new StringBuilder();
+        StringBuilder justifications = new StringBuilder();
+        List<String> missingJustifications = new ArrayList<>();
+
+        for (DecisionOptionDef option : DECISION_OPTIONS) {
+            CheckBox checkBox = decisionOptionCheckboxes.get(option.id());
+            if (checkBox == null || !checkBox.isSelected()) {
+                continue;
+            }
+
+            TextArea field = decisionJustificationFields.get(option.id());
+            String justification = field == null ? "" : field.getText().trim();
+            if (justification.isBlank()) {
+                missingJustifications.add(option.label());
+                continue;
+            }
+
+            if (selectedDecisions.length() > 0) {
+                selectedDecisions.append(" | ");
+            }
+            selectedDecisions.append(option.label());
+            justifications.append("• ").append(option.label()).append('\n');
+            justifications.append("  Justificación: ").append(justification).append("\n\n");
+        }
+
+        if (selectedDecisions.length() == 0) {
+            showAlert(Alert.AlertType.WARNING, "Selecciona al menos una opción antes de continuar.");
+            return;
+        }
+        if (!missingJustifications.isEmpty()) {
+            showAlert(
+                    Alert.AlertType.WARNING,
+                    "Completa la justificación de cada opción seleccionada:\n"
+                            + String.join("\n", missingJustifications));
             return;
         }
 
-        meta.name = groupName;
-        meta.reason = reason;
-        metadataBySignature.put(signature, meta);
-        colorButton.setStyle(buildSwatchStyle(meta.color));
-        persistInvestigationSnapshot();
-        statusLabel.setText("Grupo actualizado: " + meta.name + ".");
-        renderGroupCards();
-        updateGroupOverlays();
+        // Apply decision to pending group
+        if (pendingDecisionMeta != null && pendingDecisionGroupSignature != null) {
+            pendingDecisionMeta.name = pendingDecisionGroupName;
+            pendingDecisionMeta.reason = pendingDecisionReason;
+            pendingDecisionMeta.mode = selectedDecisions.toString();
+            pendingDecisionMeta.decisionDetail = justifications.toString().trim();
+            pendingDecisionMeta.finalized = true;
+            metadataBySignature.put(pendingDecisionGroupSignature, pendingDecisionMeta);
+            if (pendingDecisionColorButton != null) {
+                pendingDecisionColorButton.setStyle(buildSwatchStyle(pendingDecisionMeta.color));
+            }
+            persistInvestigationSnapshot();
+            statusLabel.setText("Grupo finalizado: " + pendingDecisionMeta.name + ".");
+            renderGroupCards();
+            updateGroupOverlays();
+        }
+        hideDecisionOverlay();
     }
 
     private void updateInvestigationTimer() {
@@ -1512,17 +1891,14 @@ public class PlayerView {
             return;
         }
 
-        DistractionAlertManager.stopMonitoring();
-
-        TextInputDialog investigatorDialog = new TextInputDialog();
-        investigatorDialog.setTitle("Cerrar investigación");
-        investigatorDialog.setHeaderText("Ingresa el nombre de quien realizó la investigación");
-        investigatorDialog.setContentText("Nombre:");
-        String investigatorName = investigatorDialog.showAndWait().map(String::trim).orElse("");
-        if (investigatorName.isBlank()) {
-            showAlert(Alert.AlertType.WARNING, "Debes ingresar un nombre para generar el PDF.");
+        if (!InvestigationTeamContext.ensureConfigured(stage)) {
+            showAlert(Alert.AlertType.WARNING, "Debes registrar los integrantes para generar el PDF.");
             return;
         }
+
+        DistractionAlertManager.stopMonitoring();
+
+        String investigatorName = InvestigationTeamContext.getMembersDisplay();
 
         finishingInProgress = true;
         disableInvestigationPanel();
@@ -1695,6 +2071,9 @@ public class PlayerView {
             json.append("    {\n");
             json.append("      \"name\": \"").append(escapeJson(meta.name)).append("\",\n");
             json.append("      \"reason\": \"").append(escapeJson(meta.reason)).append("\",\n");
+            json.append("      \"finalized\": ").append(meta.finalized).append(",\n");
+            json.append("      \"decision\": \"").append(escapeJson(meta.mode != null ? meta.mode : "")).append("\",\n");
+            json.append("      \"decisionDetail\": \"").append(escapeJson(meta.decisionDetail != null ? meta.decisionDetail : "")).append("\",\n");
             json.append("      \"members\": [");
             for (int j = 0; j < cluster.members.size(); j++) {
                 CaseNode member = cluster.members.get(j);
@@ -1729,7 +2108,7 @@ public class PlayerView {
             json.append("\n");
         }
 
-        json.append("  ]\n");
+        json.append("  ],\n");
         json.append("  \"alerts\": [\n");
 
         List<DistractionAlertManager.AlertRecord> alerts = DistractionAlertManager.getAlertRecords();
@@ -1782,130 +2161,69 @@ public class PlayerView {
         String timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss"));
         Path output = downloads.resolve("prisma-investigacion-" + timestamp + ".pdf");
 
-        try (PDDocument document = new PDDocument()) {
-            PDPage page = new PDPage(PDRectangle.LETTER);
-            document.addPage(page);
-
-            float margin = 50;
-            float y = page.getMediaBox().getHeight() - margin;
-
-            try (PDPageContentStream content = new PDPageContentStream(document, page)) {
-                y = writePdfLine(content, page, y, 16, "PRISMA DAE - Reporte de Investigación", true);
-                y = writePdfLine(content, page, y, 11, "Investigador: " + investigatorName, false);
-                y = writePdfLine(content, page, y, 11, "Fecha de cierre: " + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")), false);
-                y = writePdfLine(content, page, y, 11, "Motivo de cierre: " + endReason, false);
-                y = writePdfLine(content, page, y, 11, "Duración máxima configurada: " + formatDuration(INVESTIGATION_DURATION), false);
-                y = writePdfLine(content, page, y, 11, "", false);
-
-                y = writePdfLine(content, page, y, 13, "Conexiones registradas", true);
-                if (connections.isEmpty()) {
-                    y = writePdfWrappedLine(content, page, y, 11, "- No hay conexiones registradas.");
-                } else {
-                    int idx = 1;
-                    for (Connection connection : connections) {
-                        String line = idx + ". "
-                                + connection.from.getCaso().getNombre()
-                                + " <-> "
-                                + connection.to.getCaso().getNombre()
-                                + " | "
-                                + connection.reason;
-                        y = writePdfWrappedLine(content, page, y, 11, line);
-                        idx++;
-                    }
-                }
-
-                y = writePdfLine(content, page, y, 11, "", false);
-                y = writePdfLine(content, page, y, 13, "Grupos y justificaciones", true);
-                if (currentClusters.isEmpty()) {
-                    y = writePdfWrappedLine(content, page, y, 11, "- No hay grupos detectados.");
-                } else {
-                    int idx = 1;
-                    for (GroupCluster cluster : currentClusters) {
-                        GroupMeta meta = cluster.meta;
-                        y = writePdfWrappedLine(content, page, y, 11,
-                                idx + ". " + meta.name + " (" + cluster.members.size() + " casos)");
-                        y = writePdfWrappedLine(content, page, y, 11,
-                                "   Justificación: " + (meta.reason == null ? "" : meta.reason));
-                        y = writePdfWrappedLine(content, page, y, 11,
-                                "   Casos: " + cluster.members.stream()
-                                        .map(member -> member.getCaso().getNombre())
-                                        .collect(Collectors.joining(", ")));
-                        idx++;
-                    }
-                }
-
-                y = writePdfLine(content, page, y, 11, "", false);
-                y = writePdfLine(content, page, y, 13, "Casos aislados", true);
-                List<CaseNode> isolatedNodes = nodes.stream()
-                        .filter(node -> !isGroupedNode(node))
-                        .collect(Collectors.toList());
-                if (isolatedNodes.isEmpty()) {
-                    y = writePdfWrappedLine(content, page, y, 11, "- No hay casos aislados.");
-                } else {
-                    int idx = 1;
-                    for (CaseNode node : isolatedNodes) {
-                    String reason = normalizeJustification(isolatedNodeJustifications.get(node.getCaso().getNombre()));
-                        y = writePdfWrappedLine(content, page, y, 11,
-                                idx + ". " + node.getCaso().getNombre() + " - Caso aislado");
-                        y = writePdfWrappedLine(content, page, y, 11,
-                                "   Justificación: " + reason);
-                        idx++;
-                    }
-                }
-
-                y = writePdfLine(content, page, y, 11, "", false);
-                y = writePdfLine(content, page, y, 13, "Alertas distractivas", true);
-                List<DistractionAlertManager.AlertRecord> alerts = DistractionAlertManager.getAlertRecords();
-                if (alerts.isEmpty()) {
-                    y = writePdfWrappedLine(content, page, y, 11, "- No se registraron alertas distractivas.");
-                } else {
-                    int idx = 1;
-                    for (DistractionAlertManager.AlertRecord alert : alerts) {
-                        y = writePdfWrappedLine(content, page, y, 11,
-                                idx + ". " + alert.getTimestamp() + " | Imagen: " + alert.getImageName() + " | Estado: " + normalizeJustification(alert.getStatus()));
-                        if (alert.getResponseText() != null && !alert.getResponseText().isBlank()) {
-                            y = writePdfWrappedLine(content, page, y, 11, "   Respuesta: " + alert.getResponseText());
-                        }
-                        idx++;
-                    }
-                }
-            }
-
-            document.save(output.toFile());
-        }
-
+        ReportData reportData = buildInvestigationReportData(endReason, investigatorName);
+        InvestigationReportPdfExporter.generate(output, reportData);
         return output;
     }
 
-    private float writePdfLine(PDPageContentStream content, PDPage page, float y, int fontSize, String text, boolean bold)
-            throws IOException {
-        float left = 52;
-        if (y < 60) {
-            return y;
-        }
-        content.beginText();
-        content.setFont(bold ? PDType1Font.HELVETICA_BOLD : PDType1Font.HELVETICA, fontSize);
-        content.newLineAtOffset(left, y);
-        content.showText(text == null ? "" : text);
-        content.endText();
-        return y - (fontSize + 6);
-    }
+    private ReportData buildInvestigationReportData(String endReason, String investigatorName) {
+        List<ConnectionEntry> connectionEntries = connections.stream()
+                .map(connection -> InvestigationReportPdfExporter.parseConnection(
+                        connection.from.getCaso().getNombre(),
+                        connection.to.getCaso().getNombre(),
+                        connection.reason))
+                .toList();
 
-    private float writePdfWrappedLine(PDPageContentStream content, PDPage page, float y, int fontSize, String text)
-            throws IOException {
-        String value = text == null ? "" : text;
-        int maxChars = 100;
-        int cursor = 0;
-        while (cursor < value.length()) {
-            int end = Math.min(value.length(), cursor + maxChars);
-            String chunk = value.substring(cursor, end);
-            y = writePdfLine(content, page, y, fontSize, chunk, false);
-            cursor = end;
-        }
-        if (value.isEmpty()) {
-            y = writePdfLine(content, page, y, fontSize, "", false);
-        }
-        return y;
+        List<GroupEntry> groupEntries = currentClusters.stream()
+                .map(cluster -> {
+                    GroupMeta meta = cluster.meta;
+                    List<DecisionEntry> decisions = InvestigationReportPdfExporter.parseDecisions(
+                            meta.mode,
+                            meta.decisionDetail);
+                    List<String> memberNames = cluster.members.stream()
+                            .map(member -> member.getCaso().getNombre())
+                            .toList();
+                    return new GroupEntry(
+                            meta.name == null ? "Grupo sin nombre" : meta.name,
+                            cluster.members.size(),
+                            meta.finalized,
+                            normalizeJustification(meta.reason),
+                            memberNames,
+                            decisions);
+                })
+                .toList();
+
+        List<IsolatedEntry> isolatedEntries = nodes.stream()
+                .filter(node -> !isGroupedNode(node))
+                .map(node -> new IsolatedEntry(
+                        node.getCaso().getNombre(),
+                        normalizeJustification(isolatedNodeJustifications.get(node.getCaso().getNombre()))))
+                .toList();
+
+        List<AlertEntry> alertEntries = DistractionAlertManager.getAlertRecords().stream()
+                .map(alert -> {
+                    boolean responded = InvestigationReportPdfExporter.alertWasAnswered(
+                            alert.getStatus(),
+                            alert.getResponseText());
+                    return new AlertEntry(
+                            alert.getTimestamp(),
+                            alert.getImageName(),
+                            normalizeJustification(alert.getStatus()),
+                            alert.getResponseText() == null ? "" : alert.getResponseText().trim(),
+                            InvestigationReportPdfExporter.resolveAlertImagePath(alert.getImageName()),
+                            responded);
+                })
+                .toList();
+
+        return new ReportData(
+                investigatorName,
+                LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")),
+                endReason,
+                formatDuration(INVESTIGATION_DURATION),
+                connectionEntries,
+                groupEntries,
+                isolatedEntries,
+                alertEntries);
     }
 
     private String normalizeJustification(String justification) {
@@ -2050,7 +2368,9 @@ public class PlayerView {
                     defaultGroupName,
                     defaultGroupColor(signature),
                     "Asociado por modalidad",
-                    "Sin justificación registrada"
+                    "Sin justificación registrada",
+                    "",
+                    false
             ));
 
             clusters.add(new GroupCluster(signature, members, meta));
@@ -2229,18 +2549,51 @@ public class PlayerView {
         }
     }
 
+    private record DecisionOptionDef(String id, String label, String justificationPrompt) {
+    }
+
+    private static final List<DecisionOptionDef> DECISION_OPTIONS = List.of(
+            new DecisionOptionDef(
+                    "police",
+                    "1. Orden a la Policía Judicial.",
+                    "¿Qué actividad ordenará la Policía Judicial?"),
+            new DecisionOptionDef(
+                    "archive",
+                    "2. Orden de archivo.",
+                    "¿Cuál causal de archivo aplica?"),
+            new DecisionOptionDef(
+                    "hearing",
+                    "3. Solicitud de audiencia ante juez de control de garantías.",
+                    "¿Qué solicitud de garantías presentará?"),
+            new DecisionOptionDef(
+                    "prioritize",
+                    "4. Priorizar investigación.",
+                    "¿Por qué debe priorizarse esta investigación?"),
+            new DecisionOptionDef(
+                    "victims",
+                    "5. Caracterización de víctimas.",
+                    "¿Por qué debe caracterizarse a las víctimas?"),
+            new DecisionOptionDef(
+                    "other",
+                    "6. Otro.",
+                    "¿Cuál es la otra decisión y su fundamento?"));
+
     private static final class GroupMeta {
 
         private String name;
         private Color color;
         private String mode;
         private String reason;
+        private String decisionDetail;
+        private boolean finalized;
 
-        private GroupMeta(String name, Color color, String mode, String reason) {
+        private GroupMeta(String name, Color color, String mode, String reason, String decisionDetail, boolean finalized) {
             this.name = name;
             this.color = color;
             this.mode = mode;
             this.reason = reason;
+            this.decisionDetail = decisionDetail;
+            this.finalized = finalized;
         }
     }
 
@@ -2252,21 +2605,6 @@ public class PlayerView {
         private GroupOverlay(Rectangle rectangle, Text nameLabel) {
             this.rectangle = rectangle;
             this.nameLabel = nameLabel;
-        }
-    }
-
-    private static final class GroupBounds {
-
-        private final double minX;
-        private final double minY;
-        private final double width;
-        private final double height;
-
-        private GroupBounds(double minX, double minY, double width, double height) {
-            this.minX = minX;
-            this.minY = minY;
-            this.width = width;
-            this.height = height;
         }
     }
 
@@ -2299,6 +2637,10 @@ public class PlayerView {
         private double dragOffsetX;
         private double dragOffsetY;
         private boolean selected;
+
+        private String getDisplayNumber() {
+            return displayNumber;
+        }
 
         private CaseNode(Caso caso, String displayNumber) {
             this.caso = caso;

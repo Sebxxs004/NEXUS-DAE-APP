@@ -1,35 +1,56 @@
 package com.prisma.views;
 
-import javafx.animation.ScaleTransition;
+import com.prisma.data.CasoRepository;
+import com.prisma.ui.Theme;
+
+import javafx.animation.Animation;
+import javafx.animation.FadeTransition;
 import javafx.animation.KeyFrame;
+import javafx.animation.ScaleTransition;
 import javafx.animation.Timeline;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
-import javafx.scene.control.Button;
 import javafx.scene.control.Label;
+import javafx.scene.effect.ColorAdjust;
+import javafx.scene.effect.DropShadow;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
-import javafx.scene.effect.DropShadow;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.HBox;
+import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
+import javafx.scene.paint.CycleMethod;
+import javafx.scene.paint.LinearGradient;
+import javafx.scene.paint.RadialGradient;
+import javafx.scene.paint.Stop;
+import javafx.scene.shape.Circle;
+import javafx.scene.shape.Rectangle;
 import javafx.stage.Stage;
 import javafx.util.Duration;
 
-import com.prisma.ui.Theme;
+import org.kordamp.ikonli.fontawesome5.FontAwesomeSolid;
+import org.kordamp.ikonli.javafx.FontIcon;
 
 public class AdminViewNew {
+    private static final String FONT = "'Segoe UI'";
+
     private final StackPane view;
+    private final Stage stage;
     private final Label timerLabel;
+    private final HBox timerBadge;
     private final Timeline timerTimeline;
 
     public AdminViewNew(Stage stage) {
+        this.stage = stage;
+
         view = new StackPane();
-        view.setStyle("-fx-background-color: #040814;");
+        view.setPrefSize(1500, 900);
+        view.setMinSize(1500, 900);
+        view.setStyle("-fx-background-color: #0a0e1c; -fx-font-family: " + FONT + ";");
         DistractionAlertManager.attach(stage);
 
         Image backgroundImage = new Image(getClass().getResourceAsStream("/styles/assets/fondo-admin.jpeg"));
@@ -38,135 +59,94 @@ public class AdminViewNew {
         backgroundView.fitWidthProperty().bind(view.widthProperty());
         backgroundView.fitHeightProperty().bind(view.heightProperty());
         backgroundView.setMouseTransparent(true);
+        ColorAdjust colorAdjust = new ColorAdjust();
+        colorAdjust.setBrightness(-0.22);
+        backgroundView.setEffect(colorAdjust);
 
-        Label welcomeLabel = new Label("BIENVENIDO A TU DESPACHO");
-        welcomeLabel.setStyle(
-            "-fx-font-size: 34; " +
-            "-fx-font-weight: bold; " +
-            "-fx-text-fill: #f8fafc; " +
-            "-fx-font-family: 'Segoe UI'; " +
-            "-fx-effect: dropshadow(gaussian, rgba(0,0,0,0.75), 18, 0.25, 0, 4);"
-        );
+        Rectangle radialOverlay = new Rectangle();
+        radialOverlay.widthProperty().bind(view.widthProperty());
+        radialOverlay.heightProperty().bind(view.heightProperty());
+        radialOverlay.setMouseTransparent(true);
+        radialOverlay.setFill(new RadialGradient(
+            0, 0, 0.5, 0.5, 0.6, true, CycleMethod.NO_CYCLE,
+            new Stop(0.30, Color.color(0, 0, 0, 0)),
+            new Stop(1.00, Color.color(10.0 / 255.0, 14.0 / 255.0, 28.0 / 255.0, 0.55))
+        ));
 
-        Image logoImage = new Image(getClass().getResourceAsStream("/styles/assets/PRISMA-DAE.png"));
-        ImageView logoView = new ImageView(logoImage);
-        logoView.setPreserveRatio(true);
-        logoView.setFitWidth(360);
-        logoView.setSmooth(true);
+        Rectangle topGradient = new Rectangle();
+        topGradient.widthProperty().bind(view.widthProperty());
+        topGradient.setHeight(90);
+        topGradient.setMouseTransparent(true);
+        topGradient.setFill(new LinearGradient(
+            0, 0, 0, 1, true, CycleMethod.NO_CYCLE,
+            new Stop(0.0, Color.color(8.0 / 255.0, 12.0 / 255.0, 24.0 / 255.0, 0.85)),
+            new Stop(1.0, Color.color(0, 0, 0, 0))
+        ));
+        StackPane.setAlignment(topGradient, Pos.TOP_LEFT);
 
-        timerLabel = new Label("TIEMPO " + InvestigationClock.formatRemaining());
+        Rectangle bottomGradient = new Rectangle();
+        bottomGradient.widthProperty().bind(view.widthProperty());
+        bottomGradient.setHeight(200);
+        bottomGradient.setMouseTransparent(true);
+        bottomGradient.setFill(new LinearGradient(
+            0, 1, 0, 0, true, CycleMethod.NO_CYCLE,
+            new Stop(0.0, Color.color(8.0 / 255.0, 12.0 / 255.0, 24.0 / 255.0, 0.93)),
+            new Stop(1.0, Color.color(0, 0, 0, 0))
+        ));
+        StackPane.setAlignment(bottomGradient, Pos.BOTTOM_LEFT);
+
+        timerLabel = new Label("01:59:53");
         timerLabel.setStyle(
-            "-fx-font-size: 18; " +
+            "-fx-text-fill: #ffffff; " +
             "-fx-font-weight: bold; " +
-            "-fx-text-fill: #fff7ed; " +
-            "-fx-background-color: rgba(153, 27, 27, 0.94); " +
-            "-fx-background-radius: 999; " +
-            "-fx-border-color: rgba(254, 202, 202, 0.92); " +
-            "-fx-border-radius: 999; " +
-            "-fx-border-width: 2; " +
-            "-fx-padding: 10 18 10 18; " +
-            "-fx-font-family: 'Segoe UI'; " +
-            "-fx-effect: dropshadow(gaussian, rgba(248, 113, 113, 0.8), 24, 0.28, 0, 0);"
+            "-fx-font-size: 16; " +
+            "-fx-font-family: 'Consolas', 'Segoe UI', monospace;"
         );
 
-        VBox centerContent = new VBox(16, welcomeLabel, logoView);
-        centerContent.setAlignment(Pos.CENTER);
-        centerContent.setMouseTransparent(true);
-        BorderPane foreground = new BorderPane();
-        foreground.setPickOnBounds(false);
-        foreground.setMaxSize(Double.MAX_VALUE, Double.MAX_VALUE);
+        Circle timerDot = new Circle(3.5, Color.web("#ffffff"));
+        FadeTransition dotPulse = new FadeTransition(Duration.seconds(1), timerDot);
+        dotPulse.setFromValue(1.0);
+        dotPulse.setToValue(0.3);
+        dotPulse.setAutoReverse(true);
+        dotPulse.setCycleCount(Animation.INDEFINITE);
+        dotPulse.play();
 
-        Button btnBackLogin = new Button("↩  Volver al login");
-        styleAnimatedButton(btnBackLogin, false);
-        btnBackLogin.setOnAction(e -> {
-            DistractionAlertManager.stopMonitoring();
-            LoginView loginView = new LoginView(stage);
-            Scene scene = new Scene(loginView.getView(), 980, 680);
-            Theme.apply(scene);
-            stage.setScene(scene);
-            stage.setMaximized(true);
-            stage.setFullScreen(true);
-        });
+        Label timerPrefix = new Label("TIEMPO");
+        timerPrefix.setStyle(
+            "-fx-text-fill: rgba(255,255,255,0.75); " +
+            "-fx-font-weight: bold; " +
+            "-fx-font-size: 11; " +
+            "-fx-letter-spacing: 1px; " +
+            "-fx-font-family: " + FONT + ";"
+        );
 
-        BorderPane topBar = new BorderPane();
-        topBar.setPadding(new Insets(20, 24, 0, 0));
-        topBar.setLeft(btnBackLogin);
-        topBar.setRight(timerLabel);
+        timerBadge = new HBox(8, timerDot, timerPrefix, timerLabel);
+        timerBadge.setAlignment(Pos.CENTER);
+        timerBadge.setPadding(new Insets(8, 18, 8, 18));
+        applyNormalTimerStyle();
 
-        foreground.setTop(topBar);
-        foreground.setCenter(centerContent);
+        HBox topBar = buildTopBar();
+        VBox centerArea = buildCenterArea();
+        HBox actionBar = buildActionBar();
 
-        Button btnCases = new Button("📁  Gestión de casos");
-        btnCases.setPrefWidth(340);
-        btnCases.setPrefHeight(64);
-        styleAnimatedButton(btnCases, true);
-        btnCases.setOnAction(e -> {
-            CasesManagementBrownView casesView = new CasesManagementBrownView(stage);
-            Scene scene = new Scene(casesView.getView(), 1500, 900);
-            casesView.applyTheme(scene);
-            stage.setScene(scene);
-            stage.setMaximized(true);
-            stage.setFullScreen(true);
-        });
+        BorderPane shell = new BorderPane();
+        shell.setStyle("-fx-background-color: transparent;");
+        shell.setTop(topBar);
+        shell.setCenter(centerArea);
+        shell.setBottom(actionBar);
 
-        Button btnBoard = new Button("📊  Tablero analítico");
-        btnBoard.setPrefWidth(340);
-        btnBoard.setPrefHeight(64);
-        styleAnimatedButton(btnBoard, true);
-        btnBoard.setOnAction(e -> {
-            PlayerViewBrown playerView = new PlayerViewBrown(stage);
-            Scene scene = new Scene(playerView.getView(), 1500, 900);
-            playerView.applyTheme(scene);
-            stage.setScene(scene);
-            stage.setMaximized(true);
-            stage.setFullScreen(true);
-        });
-
-        HBox leftAction = new HBox(btnCases);
-        leftAction.setAlignment(Pos.BOTTOM_LEFT);
-        leftAction.setPadding(new Insets(0, 0, 42, 42));
-        leftAction.setMaxWidth(Region.USE_PREF_SIZE);
-
-        HBox rightAction = new HBox(12, btnBoard);
-        rightAction.setAlignment(Pos.BOTTOM_RIGHT);
-        rightAction.setPadding(new Insets(0, 42, 42, 0));
-        rightAction.setMaxWidth(Double.MAX_VALUE);
-
-        BorderPane bottomBar = new BorderPane();
-        bottomBar.setPickOnBounds(false);
-        bottomBar.setPadding(new Insets(0, 42, 42, 42));
-        bottomBar.setLeft(leftAction);
-        bottomBar.setRight(rightAction);
-
-        foreground.setBottom(bottomBar);
-
-        view.getChildren().addAll(backgroundView, foreground);
+        view.getChildren().addAll(
+            backgroundView,
+            radialOverlay,
+            topGradient,
+            bottomGradient,
+            shell
+        );
 
         timerTimeline = new Timeline(new KeyFrame(Duration.seconds(1), e -> refreshTimer()));
-        timerTimeline.setCycleCount(Timeline.INDEFINITE);
+        timerTimeline.setCycleCount(Animation.INDEFINITE);
         timerTimeline.play();
-    }
-
-    private void refreshTimer() {
-        timerLabel.setText("TIEMPO " + InvestigationClock.formatRemaining());
-        if (InvestigationClock.isCritical()) {
-            if (!timerLabel.getStyleClass().contains("critical-timer-pill")) {
-                timerLabel.getStyleClass().add("critical-timer-pill");
-            }
-            timerLabel.setStyle(
-                "-fx-font-size: 18; " +
-                "-fx-font-weight: bold; " +
-                "-fx-text-fill: #fff7ed; " +
-                "-fx-background-color: linear-gradient(to right, rgba(153, 27, 27, 0.98), rgba(220, 38, 38, 0.92)); " +
-                "-fx-background-radius: 999; " +
-                "-fx-border-color: rgba(254, 226, 226, 0.98); " +
-                "-fx-border-radius: 999; " +
-                "-fx-border-width: 2; " +
-                "-fx-padding: 10 18 10 18; " +
-                "-fx-font-family: 'Segoe UI'; " +
-                "-fx-effect: dropshadow(gaussian, rgba(248, 113, 113, 0.95), 28, 0.32, 0, 0);"
-            );
-        }
+        refreshTimer();
     }
 
     public StackPane getView() {
@@ -177,26 +157,308 @@ public class AdminViewNew {
         Theme.apply(scene);
     }
 
-    private void styleAnimatedButton(Button button, boolean primary) {
-        String style = primary
-            ? "-fx-font-size: 16; -fx-font-weight: bold; -fx-background-color: linear-gradient(to bottom, #facc15, #d97706); -fx-text-fill: #1f1300; -fx-border-color: #fde68a; -fx-border-width: 2; -fx-border-radius: 10; -fx-background-radius: 10; -fx-font-family: 'Segoe UI'; -fx-cursor: hand;"
-            : "-fx-font-size: 14; -fx-font-weight: bold; -fx-background-color: linear-gradient(to bottom, rgba(255,255,255,0.18), rgba(255,255,255,0.08)); -fx-text-fill: #fff7ed; -fx-border-color: rgba(255,255,255,0.18); -fx-border-width: 2; -fx-border-radius: 10; -fx-background-radius: 10; -fx-font-family: 'Segoe UI'; -fx-cursor: hand;";
-        button.setStyle(style);
-        button.setPrefHeight(64);
-        button.setEffect(new DropShadow(20, primary ? Color.rgb(0, 0, 0, 0.45) : Color.rgb(15, 23, 42, 0.38)));
+    private void goBackToLogin() {
+        timerTimeline.stop();
+        DistractionAlertManager.stopMonitoring();
+        Scene scene = new Scene(new LoginView(stage).getView(), 1500, 900);
+        Theme.apply(scene);
+        stage.setScene(scene);
+        stage.setMaximized(true);
+        stage.setFullScreen(true);
+    }
+
+    private void openCaseManagement() {
+        CasesManagementBrownView casesView = new CasesManagementBrownView(stage);
+        Scene scene = new Scene(casesView.getView(), 1500, 900);
+        casesView.applyTheme(scene);
+        stage.setScene(scene);
+        stage.setMaximized(true);
+        stage.setFullScreen(true);
+    }
+
+    private void openAnalyticsBoard() {
+        PlayerViewBrown playerView = new PlayerViewBrown(stage);
+        Scene scene = new Scene(playerView.getView(), 1500, 900);
+        playerView.applyTheme(scene);
+        stage.setScene(scene);
+        stage.setMaximized(true);
+        stage.setFullScreen(true);
+    }
+
+    private HBox buildTopBar() {
+        FontIcon backIcon = new FontIcon(FontAwesomeSolid.ARROW_LEFT);
+        backIcon.setIconSize(15);
+        backIcon.setIconColor(Color.web("#e2e8f0"));
+
+        Label backText = new Label("Volver al login");
+        backText.setStyle(
+            "-fx-text-fill: #e2e8f0; " +
+            "-fx-font-weight: bold; " +
+            "-fx-font-size: 13; " +
+            "-fx-font-family: " + FONT + ";"
+        );
+
+        HBox backButton = new HBox(7, backIcon, backText);
+        backButton.setAlignment(Pos.CENTER_LEFT);
+        backButton.setPadding(new Insets(7, 14, 7, 14));
+        backButton.setStyle(
+            "-fx-background-color: rgba(255,255,255,0.10); " +
+            "-fx-background-radius: 8; " +
+            "-fx-border-color: rgba(255,255,255,0.18); " +
+            "-fx-border-radius: 8; " +
+            "-fx-border-width: 1; " +
+            "-fx-cursor: hand;"
+        );
+        backButton.setOnMouseEntered(e -> backButton.setStyle(
+            "-fx-background-color: rgba(255,255,255,0.17); " +
+            "-fx-background-radius: 8; " +
+            "-fx-border-color: rgba(255,255,255,0.18); " +
+            "-fx-border-radius: 8; " +
+            "-fx-border-width: 1; " +
+            "-fx-cursor: hand;"
+        ));
+        backButton.setOnMouseExited(e -> backButton.setStyle(
+            "-fx-background-color: rgba(255,255,255,0.10); " +
+            "-fx-background-radius: 8; " +
+            "-fx-border-color: rgba(255,255,255,0.18); " +
+            "-fx-border-radius: 8; " +
+            "-fx-border-width: 1; " +
+            "-fx-cursor: hand;"
+        ));
+        backButton.setOnMouseClicked(e -> goBackToLogin());
+
+        Region spacer = new Region();
+        HBox.setHgrow(spacer, Priority.ALWAYS);
+
+        HBox topBar = new HBox(12, backButton, spacer, timerBadge);
+        topBar.setAlignment(Pos.CENTER_LEFT);
+        topBar.setPadding(new Insets(14, 20, 14, 20));
+        topBar.setMinHeight(56);
+        topBar.setPrefHeight(56);
+        topBar.setMaxHeight(56);
+        topBar.setStyle("-fx-background-color: transparent;");
+        return topBar;
+    }
+
+    private VBox buildCenterArea() {
+        Label welcomeTitle = new Label("Bienvenido a tu Despacho");
+        welcomeTitle.setStyle(
+            "-fx-text-fill: #f8fafc; " +
+            "-fx-font-weight: bold; " +
+            "-fx-font-size: 28; " +
+            "-fx-font-family: " + FONT + ";"
+        );
+        DropShadow welcomeShadow = new DropShadow();
+        welcomeShadow.setRadius(14);
+        welcomeShadow.setColor(Color.color(0, 0, 0, 0.70));
+        welcomeTitle.setEffect(welcomeShadow);
+        VBox.setMargin(welcomeTitle, new Insets(0, 0, 18, 0));
+
+        Image logoImage = new Image(getClass().getResourceAsStream("/styles/assets/PRISMA-DAE.png"));
+        ImageView logoView = new ImageView(logoImage);
+        logoView.setFitWidth(160);
+        logoView.setFitHeight(160);
+        logoView.setPreserveRatio(true);
+        DropShadow logoShadow = new DropShadow();
+        logoShadow.setRadius(18);
+        logoShadow.setColor(Color.color(1.0, 220.0 / 255.0, 80.0 / 255.0, 0.22));
+        logoView.setEffect(logoShadow);
+
+        Label prismaLabel = new Label("PRISMA");
+        prismaLabel.setStyle(
+            "-fx-text-fill: #f8fafc; " +
+            "-fx-font-weight: bold; " +
+            "-fx-font-size: 22; " +
+            "-fx-letter-spacing: 5px; " +
+            "-fx-font-family: " + FONT + ";"
+        );
+
+        Label daeLabel = new Label("DIRECCIÓN DE ALTOS ESTUDIOS");
+        daeLabel.setStyle(
+            "-fx-text-fill: rgba(255,255,255,0.38); " +
+            "-fx-font-weight: bold; " +
+            "-fx-font-size: 11; " +
+            "-fx-letter-spacing: 2px; " +
+            "-fx-font-family: " + FONT + ";"
+        );
+
+        VBox logoBlock = new VBox(6, logoView, prismaLabel, daeLabel);
+        logoBlock.setAlignment(Pos.CENTER);
+        VBox.setMargin(logoBlock, new Insets(0, 0, 14, 0));
+
+        HBox statusBar = new HBox(10,
+            makeStatusPill(FontAwesomeSolid.CLOCK, "Jornada: ", "2 horas"),
+            makeStatusPill(FontAwesomeSolid.COPY, "Casos activos: ", String.valueOf(CasoRepository.getCasos().size())),
+            makeStatusPill(FontAwesomeSolid.USERS, "Equipo: ", formatTeamLabel())
+        );
+        statusBar.setAlignment(Pos.CENTER);
+        VBox.setMargin(statusBar, new Insets(14, 0, 0, 0));
+
+        VBox centerArea = new VBox(0, welcomeTitle, logoBlock, statusBar);
+        centerArea.setAlignment(Pos.CENTER);
+        centerArea.setPadding(new Insets(0, 20, 0, 20));
+        centerArea.setMaxSize(Double.MAX_VALUE, Double.MAX_VALUE);
+        centerArea.setStyle("-fx-background-color: transparent;");
+        return centerArea;
+    }
+
+    private HBox buildActionBar() {
+        HBox leftButton = makeActionBtn(
+            FontAwesomeSolid.FOLDER_OPEN,
+            "Gestión de casos",
+            "Noticias criminales y expedientes",
+            false,
+            this::openCaseManagement
+        );
+
+        HBox rightButton = makeActionBtn(
+            FontAwesomeSolid.CHART_BAR,
+            "Tablero analítico",
+            "Patrones y conexiones",
+            true,
+            this::openAnalyticsBoard
+        );
+
+        Region spacer = new Region();
+        HBox.setHgrow(spacer, Priority.ALWAYS);
+
+        HBox actionBar = new HBox(leftButton, spacer, rightButton);
+        actionBar.setAlignment(Pos.BOTTOM_CENTER);
+        actionBar.setPadding(new Insets(0, 40, 32, 40));
+        actionBar.setStyle("-fx-background-color: transparent;");
+        return actionBar;
+    }
+
+    private HBox makeStatusPill(FontAwesomeSolid iconCode, String prefixText, String valueText) {
+        FontIcon icon = new FontIcon(iconCode);
+        icon.setIconSize(13);
+        icon.setIconColor(Color.web("#e09d10"));
+
+        Label prefix = new Label(prefixText);
+        prefix.setStyle(
+            "-fx-text-fill: rgba(255,255,255,0.50); " +
+            "-fx-font-size: 12; " +
+            "-fx-font-family: " + FONT + ";"
+        );
+
+        Label value = new Label(valueText);
+        value.setStyle(
+            "-fx-text-fill: #f1f5f9; " +
+            "-fx-font-weight: bold; " +
+            "-fx-font-size: 12; " +
+            "-fx-font-family: " + FONT + ";"
+        );
+
+        HBox pill = new HBox(6, icon, prefix, value);
+        pill.setAlignment(Pos.CENTER);
+        pill.setPadding(new Insets(5, 13, 5, 13));
+        pill.setStyle(
+            "-fx-background-color: rgba(255,255,255,0.07); " +
+            "-fx-background-radius: 999; " +
+            "-fx-border-color: rgba(255,255,255,0.12); " +
+            "-fx-border-radius: 999; " +
+            "-fx-border-width: 1;"
+        );
+        return pill;
+    }
+
+    private HBox makeActionBtn(
+            FontAwesomeSolid icon,
+            String mainText,
+            String subText,
+            boolean iconRight,
+            Runnable action) {
+        FontIcon fontIcon = new FontIcon(icon);
+        fontIcon.setIconSize(20);
+        fontIcon.setIconColor(Color.web("#0c1220"));
+
+        Label mainLabel = new Label(mainText);
+        mainLabel.setStyle(
+            "-fx-text-fill: #0c1220; " +
+            "-fx-font-weight: bold; " +
+            "-fx-font-size: 14; " +
+            "-fx-font-family: " + FONT + ";"
+        );
+
+        Label subLabel = new Label(subText);
+        subLabel.setStyle(
+            "-fx-text-fill: rgba(12,18,32,0.60); " +
+            "-fx-font-size: 11; " +
+            "-fx-font-family: " + FONT + ";"
+        );
+
+        VBox textBlock = new VBox(2, mainLabel, subLabel);
+        textBlock.setAlignment(iconRight ? Pos.CENTER_RIGHT : Pos.CENTER_LEFT);
+
+        HBox button;
+        if (iconRight) {
+            button = new HBox(12, textBlock, fontIcon);
+            button.setAlignment(Pos.CENTER_RIGHT);
+        } else {
+            button = new HBox(12, fontIcon, textBlock);
+            button.setAlignment(Pos.CENTER_LEFT);
+        }
+
+        button.setPadding(new Insets(15, 26, 15, 26));
+        button.setMinWidth(220);
+        button.setStyle(
+            "-fx-background-color: #e09d10; " +
+            "-fx-background-radius: 11; " +
+            "-fx-cursor: hand;"
+        );
+
         button.setOnMouseEntered(e -> {
-            button.setEffect(new DropShadow(28, primary ? Color.rgb(251, 191, 36, 0.58) : Color.rgb(56, 189, 248, 0.50)));
-            ScaleTransition grow = new ScaleTransition(Duration.millis(125), button);
-            grow.setToX(1.06);
-            grow.setToY(1.06);
+            ScaleTransition grow = new ScaleTransition(Duration.millis(130), button);
+            grow.setToX(1.03);
+            grow.setToY(1.03);
             grow.playFromStart();
         });
         button.setOnMouseExited(e -> {
-            button.setEffect(new DropShadow(20, primary ? Color.rgb(0, 0, 0, 0.45) : Color.rgb(15, 23, 42, 0.38)));
-            ScaleTransition shrink = new ScaleTransition(Duration.millis(125), button);
+            ScaleTransition shrink = new ScaleTransition(Duration.millis(130), button);
             shrink.setToX(1.0);
             shrink.setToY(1.0);
             shrink.playFromStart();
         });
+        button.setOnMouseClicked(e -> action.run());
+
+        return button;
+    }
+
+    private void refreshTimer() {
+        long remainingSeconds = InvestigationClock.getRemaining().getSeconds();
+        timerLabel.setText(InvestigationClock.formatRemaining());
+        if (remainingSeconds <= 600) {
+            applyCriticalTimerStyle();
+        } else {
+            applyNormalTimerStyle();
+        }
+    }
+
+    private void applyNormalTimerStyle() {
+        timerBadge.setStyle(
+            "-fx-background-color: rgba(220,38,38,0.85); " +
+            "-fx-background-radius: 999; " +
+            "-fx-border-color: rgba(255,100,100,0.50); " +
+            "-fx-border-radius: 999; " +
+            "-fx-border-width: 1.5;"
+        );
+    }
+
+    private void applyCriticalTimerStyle() {
+        timerBadge.setStyle(
+            "-fx-background-color: rgba(185,28,28,0.95); " +
+            "-fx-background-radius: 999; " +
+            "-fx-border-color: rgba(255,100,100,0.50); " +
+            "-fx-border-radius: 999; " +
+            "-fx-border-width: 1.5;"
+        );
+    }
+
+    private static String formatTeamLabel() {
+        if (!InvestigationTeamContext.isConfigured()) {
+            return "1 judicante";
+        }
+        int count = InvestigationTeamContext.getMembersDisplay().split(",").length;
+        return count + (count == 1 ? " judicante" : " judicantes");
     }
 }

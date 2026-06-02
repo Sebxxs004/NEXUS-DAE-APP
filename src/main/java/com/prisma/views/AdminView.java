@@ -237,62 +237,67 @@ public class AdminView {
             float margin = 50;
             float y = page.getMediaBox().getHeight() - margin;
 
-            try (PDPageContentStream content = new PDPageContentStream(document, page)) {
-                y = writePdfLine(content, page, y, 16, "PRISMA DAE - Reporte de Investigación (Simulado)", true);
-                y = writePdfLine(content, page, y, 11, "Generado: " + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")), false);
-                y = writePdfLine(content, page, y, 11, "Fuente: " + (latestSnapshot == null ? "Catalogo de casos" : latestSnapshot.getFileName().toString()), false);
-                y = writePdfLine(content, page, y, 11, "", false);
+            PDPageContentStream[] contentWrapper = new PDPageContentStream[]{new PDPageContentStream(document, page)};
+            try {
+                y = writePdfLine(document, contentWrapper, y, 16, "PRISMA DAE - Reporte de Investigación (Simulado)", true);
+                y = writePdfLine(document, contentWrapper, y, 11, "Generado: " + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")), false);
+                y = writePdfLine(document, contentWrapper, y, 11, "Fuente: " + (latestSnapshot == null ? "Catalogo de casos" : latestSnapshot.getFileName().toString()), false);
+                y = writePdfLine(document, contentWrapper, y, 11, "", false);
 
-                y = writePdfLine(content, page, y, 13, "Conexiones registradas", true);
+                y = writePdfLine(document, contentWrapper, y, 13, "Conexiones registradas", true);
                 if (parsedConnections.isEmpty()) {
-                    y = writePdfWrappedLine(content, page, y, 11, "- No hay conexiones registradas (último snapshot no disponible o vacío).");
+                    y = writePdfWrappedLine(document, contentWrapper, y, 11, "- No hay conexiones registradas (último snapshot no disponible o vacío).");
                 } else {
                     int idx = 1;
                     for (String[] conn : parsedConnections) {
                         String line = idx + ". " + conn[0] + " <-> " + conn[1] + " | " + conn[2];
-                        y = writePdfWrappedLine(content, page, y, 11, line);
+                        y = writePdfWrappedLine(document, contentWrapper, y, 11, line);
                         idx++;
                     }
                 }
 
-                y = writePdfLine(content, page, y, 11, "", false);
-                y = writePdfLine(content, page, y, 13, "Grupos y justificaciones", true);
+                y = writePdfLine(document, contentWrapper, y, 11, "", false);
+                y = writePdfLine(document, contentWrapper, y, 13, "Grupos y justificaciones", true);
                 if (parsedGroups.isEmpty()) {
-                    y = writePdfWrappedLine(content, page, y, 11, "- No hay grupos detectados (último snapshot no disponible o vacío).\n\n");
+                    y = writePdfWrappedLine(document, contentWrapper, y, 11, "- No hay grupos detectados (último snapshot no disponible o vacío).\n\n");
                 } else {
                     int idx = 1;
                     for (String[] grp : parsedGroups) {
-                        y = writePdfWrappedLine(content, page, y, 11, idx + ". " + grp[0] + " (miembros: " + grp[2] + ")");
-                        y = writePdfWrappedLine(content, page, y, 11, "   Justificación: " + grp[1]);
+                        y = writePdfWrappedLine(document, contentWrapper, y, 11, idx + ". " + grp[0] + " (miembros: " + grp[2] + ")");
+                        y = writePdfWrappedLine(document, contentWrapper, y, 11, "   Justificación: " + grp[1]);
                         idx++;
                     }
                 }
 
-                y = writePdfLine(content, page, y, 11, "", false);
-                y = writePdfLine(content, page, y, 13, "Casos aislados", true);
+                y = writePdfLine(document, contentWrapper, y, 11, "", false);
+                y = writePdfLine(document, contentWrapper, y, 13, "Casos aislados", true);
                 if (parsedIsolated.isEmpty()) {
-                    y = writePdfWrappedLine(content, page, y, 11, "- No hay casos aislados (último snapshot no disponible o vacío).\n\n");
+                    y = writePdfWrappedLine(document, contentWrapper, y, 11, "- No hay casos aislados (último snapshot no disponible o vacío).\n\n");
                 } else {
                     int idx = 1;
                     for (String[] iso : parsedIsolated) {
-                        y = writePdfWrappedLine(content, page, y, 11, idx + ". " + iso[0] + " - Justificación: " + iso[1]);
+                        y = writePdfWrappedLine(document, contentWrapper, y, 11, idx + ". " + iso[0] + " - Justificación: " + iso[1]);
                         idx++;
                     }
                 }
 
-                y = writePdfLine(content, page, y, 11, "", false);
-                y = writePdfLine(content, page, y, 13, "Alertas distractivas", true);
+                y = writePdfLine(document, contentWrapper, y, 11, "", false);
+                y = writePdfLine(document, contentWrapper, y, 13, "Alertas distractivas", true);
                 if (parsedAlerts.isEmpty()) {
-                    y = writePdfWrappedLine(content, page, y, 11, "- No hay alertas distractivas registradas.");
+                    y = writePdfWrappedLine(document, contentWrapper, y, 11, "- No hay alertas distractivas registradas.");
                 } else {
                     int idx = 1;
                     for (String[] alert : parsedAlerts) {
-                        y = writePdfWrappedLine(content, page, y, 11, idx + ". " + alert[0] + " | Imagen: " + alert[1] + " | Estado: " + alert[2]);
+                        y = writePdfWrappedLine(document, contentWrapper, y, 11, idx + ". " + alert[0] + " | Imagen: " + alert[1] + " | Estado: " + alert[2]);
                         if (!alert[3].isBlank()) {
-                            y = writePdfWrappedLine(content, page, y, 11, "   Respuesta: " + alert[3]);
+                            y = writePdfWrappedLine(document, contentWrapper, y, 11, "   Respuesta: " + alert[3]);
                         }
                         idx++;
                     }
+                }
+            } finally {
+                if (contentWrapper[0] != null) {
+                    contentWrapper[0].close();
                 }
             }
 
@@ -303,12 +308,17 @@ public class AdminView {
     }
 
     // Reuse small helpers from PlayerView: simple PDF helpers
-    private float writePdfLine(PDPageContentStream content, PDPage page, float y, int fontSize, String text, boolean bold)
+    private float writePdfLine(PDDocument document, PDPageContentStream[] contentWrapper, float y, int fontSize, String text, boolean bold)
             throws IOException {
         float left = 52;
         if (y < 60) {
-            return y;
+            contentWrapper[0].close();
+            PDPage newPage = new PDPage(PDRectangle.LETTER);
+            document.addPage(newPage);
+            contentWrapper[0] = new PDPageContentStream(document, newPage);
+            y = newPage.getMediaBox().getHeight() - 50;
         }
+        PDPageContentStream content = contentWrapper[0];
         content.beginText();
         content.setFont(bold ? PDType1Font.HELVETICA_BOLD : PDType1Font.HELVETICA, fontSize);
         content.newLineAtOffset(left, y);
@@ -317,7 +327,7 @@ public class AdminView {
         return y - (fontSize + 6);
     }
 
-    private float writePdfWrappedLine(PDPageContentStream content, PDPage page, float y, int fontSize, String text)
+    private float writePdfWrappedLine(PDDocument document, PDPageContentStream[] contentWrapper, float y, int fontSize, String text)
             throws IOException {
         String value = text == null ? "" : text;
         int maxChars = 100;
@@ -325,11 +335,11 @@ public class AdminView {
         while (cursor < value.length()) {
             int end = Math.min(value.length(), cursor + maxChars);
             String chunk = value.substring(cursor, end);
-            y = writePdfLine(content, page, y, fontSize, chunk, false);
+            y = writePdfLine(document, contentWrapper, y, fontSize, chunk, false);
             cursor = end;
         }
         if (value.isEmpty()) {
-            y = writePdfLine(content, page, y, fontSize, "", false);
+            y = writePdfLine(document, contentWrapper, y, fontSize, "", false);
         }
         return y;
     }

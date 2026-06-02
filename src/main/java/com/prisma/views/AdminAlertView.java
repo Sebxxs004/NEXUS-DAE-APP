@@ -10,6 +10,7 @@ import javafx.geometry.Pos;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
+import javafx.scene.effect.DropShadow;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.layout.BorderPane;
@@ -17,7 +18,6 @@ import javafx.scene.layout.HBox;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
-import javafx.scene.effect.DropShadow;
 import javafx.stage.Stage;
 import javafx.util.Duration;
 
@@ -61,10 +61,6 @@ public class AdminAlertView {
             "-fx-effect: dropshadow(gaussian, rgba(248, 113, 113, 0.8), 24, 0.28, 0, 0);"
         );
 
-        Button btnTest = new Button("⚠  Probar alerta ahora");
-        styleButton(btnTest, true);
-        btnTest.setOnAction(e -> DistractionAlertManager.forceNextAlertTest());
-
         Button btnBack = new Button("↩  Volver al login");
         styleButton(btnBack, false);
         btnBack.setOnAction(e -> {
@@ -77,7 +73,7 @@ public class AdminAlertView {
             stage.setFullScreen(true);
         });
 
-        HBox actions = new HBox(14, btnTest, btnBack);
+        HBox actions = new HBox(14, btnBack);
         actions.setAlignment(Pos.CENTER);
 
         VBox content = new VBox(18, title, subtitle, timerLabel, actions);

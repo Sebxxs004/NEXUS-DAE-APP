@@ -37,7 +37,7 @@ JPACKAGE_BIN="$(resolve_jpackage)"
   --input "$INPUT_DIR" \
   --name "PRISMA-DAE" \
   --main-jar "PRISMA-DAE.jar" \
-  --main-class "com.prisma.App" \
+  --main-class "com.prisma.Launcher" \
   --app-version "1.0.0" \
   --mac-package-identifier "com.prisma.dae"
 

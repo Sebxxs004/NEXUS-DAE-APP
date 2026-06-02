@@ -12,6 +12,6 @@ if (Test-Path (Join-Path $PWD 'casos')) { Copy-Item -Recurse -Force (Join-Path $
 if (Test-Path (Join-Path $PWD 'alertas')) { Copy-Item -Recurse -Force (Join-Path $PWD 'alertas') (Join-Path $resDir 'alertas') }
 
 Write-Host "Incluyendo recursos desde: $resDir"
-& $jpackage --type app-image --input .\target\package --main-jar PRISMA-DAE.jar --main-class com.prisma.App --name PRISMA-DAE --runtime-image jlink-runtime --resource-dir $resDir --app-version 1.0.0 --dest .\target\dist
+& $jpackage --type app-image --input .\target\package --main-jar PRISMA-DAE.jar --main-class com.prisma.Launcher --name PRISMA-DAE --runtime-image jlink-runtime --resource-dir $resDir --app-version 1.0.0 --dest .\target\dist
 if ($LASTEXITCODE -ne 0) { Write-Error "jpackage falló (exit $LASTEXITCODE)"; exit $LASTEXITCODE }
 Write-Host 'jpackage completado.'

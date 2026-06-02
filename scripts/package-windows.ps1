@@ -36,8 +36,23 @@ $jpackage = Resolve-JPackage
     --input $inputDir `
     --name 'PRISMA-DAE' `
     --main-jar 'PRISMA-DAE.jar' `
-    --main-class 'com.prisma.App' `
+    --main-class 'com.prisma.Launcher' `
     --app-version '1.0.0'
+
+$appDir = Join-Path $outputDir 'PRISMA-DAE'
+if (-not (Test-Path $appDir)) {
+    throw "No se encontro la carpeta empaquetada: $appDir"
+}
+
+# Garantiza que los recursos externos queden junto al .exe
+$casosSource = Join-Path $projectRoot 'casos'
+$alertasSource = Join-Path $projectRoot 'alertas'
+if (Test-Path $casosSource) {
+    Copy-Item -Recurse -Force $casosSource (Join-Path $appDir 'casos')
+}
+if (Test-Path $alertasSource) {
+    Copy-Item -Recurse -Force $alertasSource (Join-Path $appDir 'alertas')
+}
 
 $zipPath = Join-Path $outputDir 'PRISMA-DAE-1.0.0-windows.zip'
 if (Test-Path $zipPath) {
