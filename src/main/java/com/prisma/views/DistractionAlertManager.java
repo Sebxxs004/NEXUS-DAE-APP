@@ -54,6 +54,10 @@ public final class DistractionAlertManager {
     private static final java.time.Duration CHECK_INTERVAL = java.time.Duration.ofMinutes(10);
     private static final java.time.Duration IMAGE_WINDOW_DURATION = java.time.Duration.ofMinutes(3);
     private static final java.time.Duration READ_PENALTY = java.time.Duration.ofMinutes(2);
+    private static final java.time.Duration VISITOR_ACCEPT_PENALTY = java.time.Duration.ofMinutes(5);
+    private static final java.time.Duration VISITOR_REMIT_PENALTY = java.time.Duration.ofMinutes(3);
+    private static final String VISITOR_ALERT_IMAGE = "usuario5.png";
+    private static final String USER_VIEW_BACKGROUND = "/styles/assets/user-view.jpeg";
     private static final DateTimeFormatter FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
     private static final Object LOCK = new Object();
 
@@ -139,6 +143,36 @@ public final class DistractionAlertManager {
         }
     }
 
+    /** Lanza de inmediato la alerta de usuario en despacho (usuario5.png). */
+    public static void triggerTestVisitorAlertNow() {
+        synchronized (LOCK) {
+            if (ownerStage == null || alertActive) {
+                return;
+            }
+            Path visitorPath = resolveVisitorAlertPath();
+            if (visitorPath == null) {
+                return;
+            }
+            currentImagePath = visitorPath;
+            alertActive = true;
+            currentRecord = new AlertRecord(VISITOR_ALERT_IMAGE);
+            currentRecord.status = "NOTIFICADA";
+            ALERT_RECORDS.add(currentRecord);
+            PlatformRunner.run(() -> {
+                closeWindow(notificationStage);
+                notificationStage = buildVisitorNotificationStage();
+                notificationStage.show();
+                notificationStage.toFront();
+            });
+            resetCycle();
+        }
+    }
+
+    private static Path resolveVisitorAlertPath() {
+        Path candidate = Paths.get(System.getProperty("user.dir"), "alertas", VISITOR_ALERT_IMAGE);
+        return Files.isRegularFile(candidate) ? candidate : null;
+    }
+
     public static List<AlertRecord> getAlertRecords() {
         synchronized (LOCK) {
             return Collections.unmodifiableList(new ArrayList<>(ALERT_RECORDS));
@@ -216,10 +250,349 @@ public final class DistractionAlertManager {
 
         PlatformRunner.run(() -> {
             closeWindow(notificationStage);
-            notificationStage = buildNotificationStage();
+            if (isVisitorAlert(currentImagePath)) {
+                notificationStage = buildVisitorNotificationStage();
+            } else {
+                notificationStage = buildNotificationStage();
+            }
             notificationStage.show();
             notificationStage.toFront();
         });
+    }
+
+    private static boolean isVisitorAlert(Path imagePath) {
+        if (imagePath == null || imagePath.getFileName() == null) {
+            return false;
+        }
+        return VISITOR_ALERT_IMAGE.equalsIgnoreCase(imagePath.getFileName().toString());
+    }
+
+    private static Stage buildVisitorNotificationStage() {
+        Stage stage = createBaseStage();
+        StackPane root = new StackPane();
+
+        ImageView background = visitorBackground(stage);
+        Rectangle overlay = darkOverlay(stage);
+
+        HBox cardHeader = new HBox(12);
+        cardHeader.setAlignment(Pos.CENTER_LEFT);
+        cardHeader.setPadding(new Insets(16, 22, 16, 22));
+        cardHeader.setStyle(
+                "-fx-background-color: rgba(59,130,246,0.18); " +
+                "-fx-border-color: transparent transparent rgba(96,165,250,0.22) transparent; " +
+                "-fx-border-width: 0 0 1 0;");
+
+        StackPane headerIcon = makeIconBox(
+                FontAwesomeSolid.USER,
+                22,
+                "#93c5fd",
+                "rgba(59,130,246,0.22)",
+                "rgba(96,165,250,0.35)");
+
+        Label headerTitle = new Label("USUARIO EN DESPACHO");
+        headerTitle.setStyle(
+                "-fx-text-fill: #fff7ed; " +
+                "-fx-font-size: 15; " +
+                "-fx-font-weight: bold; " +
+                "-fx-font-family: " + UI_FONT + ";");
+
+        Label headerSubtitle = new Label("Recepción · Atención al usuario");
+        headerSubtitle.setStyle(
+                "-fx-text-fill: rgba(255,255,255,0.45); " +
+                "-fx-font-size: 12; " +
+                "-fx-font-family: " + UI_FONT + ";");
+
+        VBox headerText = new VBox(2, headerTitle, headerSubtitle);
+        headerText.setAlignment(Pos.CENTER_LEFT);
+        cardHeader.getChildren().addAll(headerIcon, headerText);
+
+        Label introLabel = new Label(
+                "Ha llegado un usuario a tu despacho.");
+        introLabel.setWrapText(true);
+        introLabel.setAlignment(Pos.CENTER);
+        introLabel.setMaxWidth(520);
+        introLabel.setStyle(
+                "-fx-text-fill: #f1f5f9; " +
+                "-fx-font-size: 15; " +
+                "-fx-font-family: " + UI_FONT + ";");
+
+        HBox acceptBtn = makeActionBtn(FontAwesomeSolid.USER_CHECK, "Recibir al usuario (−5 min)", true);
+        acceptBtn.setOnMouseClicked(event -> handleVisitorAccept());
+
+        HBox remitBtn = makeActionBtn(FontAwesomeSolid.USER_FRIENDS, "Remitir el usuario al judicante (−3 min)", false);
+        remitBtn.setOnMouseClicked(event -> handleVisitorRemit());
+
+        HBox rescheduleBtn = makeActionBtn(FontAwesomeSolid.CALENDAR_ALT, "Programar cita en agenda del despacho", false);
+        rescheduleBtn.setOnMouseClicked(event -> handleVisitorReschedule());
+
+        VBox buttonsCol = new VBox(10, acceptBtn, remitBtn, rescheduleBtn);
+        buttonsCol.setAlignment(Pos.CENTER);
+        buttonsCol.setFillWidth(true);
+
+        VBox cardBody = new VBox(18, introLabel, buttonsCol);
+        cardBody.setAlignment(Pos.CENTER);
+        cardBody.setPadding(new Insets(24, 28, 24, 28));
+
+        VBox notifCard = new VBox(cardHeader, cardBody);
+        notifCard.setSpacing(0);
+        notifCard.setFillWidth(true);
+        notifCard.setMaxWidth(580);
+        notifCard.setPrefWidth(580);
+        notifCard.setStyle(
+                "-fx-background-color: rgba(8,14,30,0.92); " +
+                "-fx-background-radius: 20; " +
+                "-fx-border-radius: 20; " +
+                "-fx-border-color: rgba(96,165,250,0.35); " +
+                "-fx-border-width: 1.5;");
+
+        StackPane cardHost = new StackPane(notifCard);
+        cardHost.setPickOnBounds(false);
+        cardHost.setMaxSize(Region.USE_PREF_SIZE, Region.USE_PREF_SIZE);
+        StackPane.setAlignment(notifCard, Pos.CENTER);
+
+        root.getChildren().addAll(background, overlay, cardHost);
+        StackPane.setAlignment(cardHost, Pos.CENTER);
+
+        stage.setScene(new Scene(root, 1280, 820));
+        stage.setMaximized(true);
+        stage.setFullScreen(true);
+        return stage;
+    }
+
+    private static void handleVisitorAccept() {
+        markCurrentRecord("ENTREVISTA_ACEPTADA", "Usuario entrevistado; aporte de información recibido.");
+        InvestigationClock.deduct(VISITOR_ACCEPT_PENALTY);
+        closeWindow(notificationStage);
+        notificationStage = null;
+        launchVisitorAcceptOutcomeStage("Lo has entrevistado y el usuario te entregó este aporte de información:");
+    }
+
+    private static void handleVisitorRemit() {
+        markCurrentRecord("ENTREVISTA_REMITIDA", "Usuario redirigido al judicante. (Error: vital importancia)");
+        InvestigationClock.deduct(VISITOR_REMIT_PENALTY);
+        InvestigationClock.deduct(java.time.Duration.ofMinutes(5));
+        closeWindow(notificationStage);
+        notificationStage = null;
+        launchVisitorMessageStage(
+                "¡Esa información es de vital importancia para el fiscal!",
+                "Por tanto se te descontarán 5 minutos adicionales.",
+                () -> launchVisitorAcceptOutcomeStage("Este es el aporte de información que fue redirigido:")
+        );
+    }
+
+    private static void handleVisitorReschedule() {
+        markCurrentRecord("ENTREVISTA_REPROGRAMADA", "Entrevista reprogramada; sin penalización de tiempo.");
+        closeWindow(notificationStage);
+        notificationStage = null;
+        finishCurrentAlert();
+    }
+
+    private static void launchVisitorAcceptOutcomeStage(String messageText) {
+        PlatformRunner.run(() -> {
+            closeWindow(readingStage);
+            readingStage = buildVisitorAcceptOutcomeStage(messageText);
+            readingStage.show();
+            readingStage.toFront();
+        });
+    }
+
+    private static Stage buildVisitorAcceptOutcomeStage(String messageText) {
+        Stage stage = createBaseStage();
+        StackPane root = new StackPane();
+
+        ImageView background = visitorBackground(stage);
+        Rectangle overlay = darkOverlay(stage);
+
+        Label messageLabel = new Label(messageText);
+        messageLabel.setWrapText(true);
+        messageLabel.setAlignment(Pos.CENTER);
+        messageLabel.setMaxWidth(900);
+        messageLabel.setStyle(
+                "-fx-text-fill: #f8fafc; " +
+                "-fx-font-size: 17; " +
+                "-fx-font-weight: bold; " +
+                "-fx-font-family: " + UI_FONT + ";");
+
+        ImageView evidenceView = new ImageView(loadImageFromPath(currentImagePath));
+        evidenceView.setPreserveRatio(true);
+        evidenceView.setSmooth(true);
+        evidenceView.setCache(true);
+        
+        double baseFitWidth = 900.0;
+        double baseFitHeight = 520.0;
+        evidenceView.setFitWidth(baseFitWidth);
+        evidenceView.setFitHeight(baseFitHeight);
+
+        StackPane imageHolder = new StackPane(evidenceView);
+        imageHolder.setAlignment(Pos.CENTER);
+        imageHolder.setPadding(new Insets(12));
+        imageHolder.setMinSize(0, 0);
+
+        ScrollPane evidenceScroll = new ScrollPane(imageHolder);
+        evidenceScroll.setFitToWidth(false);
+        evidenceScroll.setFitToHeight(false);
+        evidenceScroll.setPannable(false);
+        evidenceScroll.setHbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
+        evidenceScroll.setVbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
+        evidenceScroll.setPrefSize(940, 560);
+        evidenceScroll.setStyle(
+                "-fx-background-color: rgba(255,255,255,0.04); " +
+                "-fx-background-radius: 12; " +
+                "-fx-border-radius: 12; " +
+                "-fx-border-color: rgba(255,255,255,0.12); " +
+                "-fx-border-width: 1;");
+
+        final double[] zoomState = {1.0};
+        final double[] dragStart = {0.0, 0.0, 0.0, 0.0};
+
+        evidenceScroll.addEventFilter(ScrollEvent.SCROLL, event -> {
+            if (event.isControlDown()) {
+                double factor = event.getDeltaY() > 0 ? 1.12 : 0.9;
+                zoomState[0] = Math.max(0.35, Math.min(zoomState[0] * factor, 4.5));
+                evidenceView.setFitWidth(baseFitWidth * zoomState[0]);
+                evidenceView.setFitHeight(baseFitHeight * zoomState[0]);
+                event.consume();
+            }
+        });
+
+        evidenceScroll.addEventFilter(MouseEvent.MOUSE_PRESSED, event -> {
+            dragStart[0] = event.getX();
+            dragStart[1] = event.getY();
+            dragStart[2] = evidenceScroll.getHvalue();
+            dragStart[3] = evidenceScroll.getVvalue();
+        });
+
+        evidenceScroll.addEventFilter(MouseEvent.MOUSE_DRAGGED, event -> {
+            double viewportWidth = Math.max(1.0, evidenceScroll.getViewportBounds().getWidth());
+            double viewportHeight = Math.max(1.0, evidenceScroll.getViewportBounds().getHeight());
+            double hDelta = (dragStart[0] - event.getX()) / viewportWidth;
+            double vDelta = (dragStart[1] - event.getY()) / viewportHeight;
+            evidenceScroll.setHvalue(Math.max(evidenceScroll.getHmin(), Math.min(dragStart[2] + hDelta, evidenceScroll.getHmax())));
+            evidenceScroll.setVvalue(Math.max(evidenceScroll.getVmin(), Math.min(dragStart[3] + vDelta, evidenceScroll.getVmax())));
+            event.consume();
+        });
+
+        HBox continueBtn = makeActionBtn(FontAwesomeSolid.CHECK, "Continuar investigación", true);
+        continueBtn.setOnMouseClicked(event -> {
+            closeWindow(readingStage);
+            readingStage = null;
+            finishCurrentAlert();
+        });
+
+        VBox content = new VBox(16, messageLabel, evidenceScroll, continueBtn);
+        content.setAlignment(Pos.CENTER);
+        content.setPadding(new Insets(28));
+        content.setMaxWidth(980);
+        content.setStyle(
+                "-fx-background-color: rgba(8,14,30,0.88); " +
+                "-fx-background-radius: 18; " +
+                "-fx-border-radius: 18; " +
+                "-fx-border-color: rgba(96,165,250,0.28); " +
+                "-fx-border-width: 1.5;");
+
+        StackPane cardHost = new StackPane(content);
+        StackPane.setAlignment(content, Pos.CENTER);
+
+        root.getChildren().addAll(background, overlay, cardHost);
+        StackPane.setAlignment(cardHost, Pos.CENTER);
+
+        stage.setScene(new Scene(root, 1280, 820));
+        stage.setMaximized(true);
+        stage.setFullScreen(true);
+        return stage;
+    }
+
+    private static void launchVisitorMessageStage(String title, String subtitle, Runnable onContinue) {
+        PlatformRunner.run(() -> {
+            closeWindow(readingStage);
+            readingStage = buildVisitorMessageStage(title, subtitle, onContinue);
+            readingStage.show();
+            readingStage.toFront();
+        });
+    }
+
+    private static Stage buildVisitorMessageStage(String title, String subtitle, Runnable onContinue) {
+        Stage stage = createBaseStage();
+        StackPane root = new StackPane();
+
+        ImageView background = visitorBackground(stage);
+        Rectangle overlay = darkOverlay(stage);
+
+        StackPane headerIcon = makeIconBox(
+                FontAwesomeSolid.CHECK_CIRCLE,
+                22,
+                "#86efac",
+                "rgba(34,197,94,0.18)",
+                "rgba(74,222,128,0.30)");
+
+        Label titleLabel = new Label(title);
+        titleLabel.setWrapText(true);
+        titleLabel.setAlignment(Pos.CENTER);
+        titleLabel.setMaxWidth(520);
+        titleLabel.setStyle(
+                "-fx-text-fill: #f8fafc; " +
+                "-fx-font-size: 17; " +
+                "-fx-font-weight: bold; " +
+                "-fx-font-family: " + UI_FONT + ";");
+
+        Label subtitleLabel = new Label(subtitle);
+        subtitleLabel.setWrapText(true);
+        subtitleLabel.setAlignment(Pos.CENTER);
+        subtitleLabel.setMaxWidth(520);
+        subtitleLabel.setStyle(
+                "-fx-text-fill: #94a3b8; " +
+                "-fx-font-size: 14; " +
+                "-fx-font-family: " + UI_FONT + ";");
+
+        HBox continueBtn = makeActionBtn(FontAwesomeSolid.ARROW_RIGHT, "Continuar", true);
+        continueBtn.setOnMouseClicked(event -> {
+            closeWindow(readingStage);
+            readingStage = null;
+            if (onContinue != null) {
+                onContinue.run();
+            } else {
+                finishCurrentAlert();
+            }
+        });
+
+        VBox cardBody = new VBox(16, headerIcon, titleLabel, subtitleLabel, continueBtn);
+        cardBody.setAlignment(Pos.CENTER);
+        cardBody.setPadding(new Insets(28, 32, 28, 32));
+
+        VBox card = new VBox(cardBody);
+        card.setMaxWidth(560);
+        card.setPrefWidth(560);
+        card.setMaxHeight(Region.USE_PREF_SIZE);
+        card.setPrefHeight(Region.USE_COMPUTED_SIZE);
+        card.setStyle(
+                "-fx-background-color: rgba(8,14,30,0.92); " +
+                "-fx-background-radius: 20; " +
+                "-fx-border-radius: 20; " +
+                "-fx-border-color: rgba(74,222,128,0.30); " +
+                "-fx-border-width: 1.5;");
+
+        StackPane cardHost = new StackPane(card);
+        cardHost.setPickOnBounds(false);
+        cardHost.setMaxSize(Region.USE_PREF_SIZE, Region.USE_PREF_SIZE);
+        StackPane.setAlignment(card, Pos.CENTER);
+
+        root.getChildren().addAll(background, overlay, cardHost);
+        StackPane.setAlignment(cardHost, Pos.CENTER);
+
+        stage.setScene(new Scene(root, 1280, 820));
+        stage.setMaximized(true);
+        stage.setFullScreen(true);
+        return stage;
+    }
+
+    private static ImageView visitorBackground(Stage stage) {
+        ImageView background = new ImageView(loadImageFromResource(USER_VIEW_BACKGROUND));
+        background.setPreserveRatio(false);
+        background.fitWidthProperty().bind(stage.widthProperty());
+        background.fitHeightProperty().bind(stage.heightProperty());
+        background.setOpacity(0.55);
+        background.setMouseTransparent(true);
+        return background;
     }
 
     private static Stage buildNotificationStage() {

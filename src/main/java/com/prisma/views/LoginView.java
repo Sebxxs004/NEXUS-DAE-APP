@@ -214,6 +214,7 @@ public class LoginView {
         return button;
     }
 
+
     private HBox buildExitAction() {
         HBox button = new HBox(12);
         button.setAlignment(Pos.CENTER_LEFT);
