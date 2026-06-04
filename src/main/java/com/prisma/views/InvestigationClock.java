@@ -3,7 +3,7 @@ package com.prisma.views;
 import java.time.Duration;
 
 public final class InvestigationClock {
-    private static final Duration INVESTIGATION_DURATION = Duration.ofHours(2);
+    private static final Duration INVESTIGATION_DURATION = Duration.ofHours(3);
     private static final long STARTED_AT_MILLIS = System.currentTimeMillis();
     private static long deductedMillis = 0L;
 
