@@ -287,7 +287,7 @@ public class AdminViewNew {
         VBox.setMargin(logoBlock, new Insets(0, 0, 14, 0));
 
         HBox statusBar = new HBox(10,
-            makeStatusPill(FontAwesomeSolid.CLOCK, "Jornada: ", "2 horas"),
+            makeStatusPill(FontAwesomeSolid.CLOCK, "Jornada: ", "3 horas"),
             makeStatusPill(FontAwesomeSolid.COPY, "Casos activos: ", String.valueOf(CasoRepository.getCasos().size())),
             makeStatusPill(FontAwesomeSolid.USERS, "Equipo: ", formatTeamLabel())
         );
