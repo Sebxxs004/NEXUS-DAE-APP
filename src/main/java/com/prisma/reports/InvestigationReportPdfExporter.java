@@ -89,9 +89,9 @@ public final class InvestigationReportPdfExporter {
                     }
                 }
 
-                canvas.drawSectionTitle("4. Alertas distractivas (correos)");
+                canvas.drawSectionTitle("4. Alertas distractoras.");
                 if (data.alerts().isEmpty()) {
-                    canvas.drawMuted("- No se registraron alertas distractivas.");
+                    canvas.drawMuted("- No se registraron alertas distractoras.");
                 } else {
                     int index = 1;
                     for (AlertEntry alert : data.alerts()) {

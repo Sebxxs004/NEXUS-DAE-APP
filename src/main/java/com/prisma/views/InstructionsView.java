@@ -268,8 +268,8 @@ public class InstructionsView {
 
     private VBox buildSection2() {
         VBox section = new VBox(18);
-        section.getChildren().add(sectionHeader("🧩", "¿Qué es NEXUS?", "Una simulación interactiva diseñada para fiscales."));
-        section.getChildren().add(infoBox("NEXUS es una simulación interactiva en la que usted asume el rol de Fiscal Delegado al frente de un despacho con una carga real de trabajo."));
+        section.getChildren().add(sectionHeader("🧩", "¿Qué es NEXUS?", "Una actividad de simulación interactiva diseñada para fiscales."));
+        section.getChildren().add(infoBox("NEXUS es una actividad de simulación interactiva en la que usted asume el rol de Fiscal Delegado al frente de un despacho con una carga real de trabajo."));
 
         Label during = new Label("DURANTE EL JUEGO DEBERÁ:");
         during.setStyle("-fx-text-fill: #94a3b8; -fx-font-size: 11; -fx-font-weight: bold; -fx-font-family: 'Segoe UI'; -fx-letter-spacing: 2px;");
