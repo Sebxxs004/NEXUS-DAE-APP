@@ -1920,6 +1920,8 @@ public class PlayerView {
                     "Investigación finalizada por " + reason + ".\nPDF generado en:\n" + pdfPath.toAbsolutePath());
             investigationFinished = true;
             finishingInProgress = false;
+            
+            deleteGameDataAndExit();
         });
 
         exportTask.setOnFailed(event -> {
@@ -2159,7 +2161,7 @@ public class PlayerView {
         Files.createDirectories(downloads);
 
         String timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss"));
-        Path output = downloads.resolve("NEXUS-investigacion-" + timestamp + ".pdf");
+        Path output = downloads.resolve("nexus-investigacion-" + timestamp + ".pdf");
 
         ReportData reportData = buildInvestigationReportData(endReason, investigatorName);
         InvestigationReportPdfExporter.generate(output, reportData);
@@ -2499,6 +2501,43 @@ public class PlayerView {
         alert.setHeaderText(null);
         alert.setTitle("NEXUS DAE");
         alert.showAndWait();
+    }
+
+    private void deleteGameDataAndExit() {
+        try {
+            Path casosDir = Paths.get("casos");
+            if (Files.exists(casosDir)) {
+                Files.walk(casosDir)
+                     .sorted(Comparator.reverseOrder())
+                     .map(Path::toFile)
+                     .forEach(java.io.File::delete);
+            }
+            Path alertasDir = Paths.get("alertas");
+            if (Files.exists(alertasDir)) {
+                Files.walk(alertasDir)
+                     .sorted(Comparator.reverseOrder())
+                     .map(Path::toFile)
+                     .forEach(java.io.File::delete);
+            }
+            
+            // Eliminar el instalador del escritorio según el sistema operativo
+            String home = System.getProperty("user.home");
+            String os = System.getProperty("os.name", "").toLowerCase();
+            if (os.contains("win")) {
+                String zipName = "NEXUS-DAE-1.0.0-windows.zip";
+                Files.deleteIfExists(Paths.get(home, "Desktop", zipName));
+                Files.deleteIfExists(Paths.get(home, "Escritorio", zipName));
+                Files.deleteIfExists(Paths.get(home, "Downloads", zipName));
+                Files.deleteIfExists(Paths.get(home, "Descargas", zipName));
+            } else if (os.contains("mac")) {
+                Files.deleteIfExists(Paths.get(home, "Desktop", "NEXUS-DAE-1.0.0.dmg"));
+                Files.deleteIfExists(Paths.get(home, "Downloads", "NEXUS-DAE-1.0.0.dmg"));
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        Platform.exit();
+        System.exit(0);
     }
 
     private HBox buildActionChip(String labelText) {
