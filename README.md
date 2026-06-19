@@ -149,27 +149,52 @@ Login → AdminViewNew → CasesManagement (Gestión de Casos)
 
 ## 📦 Empaquetado y Distribución
 
-La aplicación se puede distribuir como un paquete **auto-contenido** (no requiere Java instalado en la máquina destino).
+La aplicación se puede distribuir como un paquete **auto-contenido** que incluye su propio runtime de Java personalizado mediante `jlink` y `jpackage`. Esto significa que el usuario final no necesita tener Java instalado en su sistema.
 
-### Windows
+> ⚠️ **Importante:** La compilación y empaquetado del instalador nativo debe realizarse directamente en el sistema operativo de destino (Windows para generar el `.zip`/`.exe`, y macOS para generar el `.dmg`).
 
+---
+
+### 🪟 Especificaciones para Windows
+
+#### Requisitos de Construcción
+- **JDK 17 o superior** con la herramienta `jpackage` disponible en el `PATH` o definida bajo la variable de entorno `JAVA_HOME`.
+- **Maven** instalado y configurado en las variables de entorno.
+- *(Opcional)* **WiX Toolset (v3.x)** si se desea empaquetar como instalador `.msi` en lugar de un archivo comprimido `.zip`.
+
+#### Instrucciones de Empaquetado
+Ejecuta el script de PowerShell en una terminal con permisos apropiados:
 ```powershell
 .\scripts\package-windows.ps1
 ```
 
-**Salida:** `target\dist\NEXUS-DAE-1.0.0-windows.zip`
+#### Resultado y Distribución
+- El script generará el archivo auto-contenido en: `target\dist\NEXUS-DAE-1.0.0-windows.zip`.
+- Al descomprimir este archivo en cualquier máquina Windows, se puede ejecutar la aplicación directamente haciendo doble clic sobre el ejecutable `NEXUS-DAE.exe`.
+- Las carpetas locales de recursos (`casos/` y `alertas/`) se copiarán de manera automática junto al ejecutable para asegurar su correcto funcionamiento sin configuraciones manuales adicionales.
 
-### macOS
+---
 
+### 🍎 Especificaciones para macOS
+
+#### Requisitos de Construcción
+- **JDK 17 o superior** para macOS (compatible con la arquitectura del equipo: Intel o Apple Silicon M1/M2/M3).
+- **Maven** instalado (se puede instalar fácilmente vía [Homebrew](https://brew.sh) con `brew install maven`).
+- Permisos de ejecución habilitados para los scripts `.sh` de la carpeta `scripts/`.
+
+#### Instrucciones de Empaquetado
+Asigna permisos de ejecución al script y lánzalo desde la terminal de macOS:
 ```bash
+chmod +x scripts/package-macos.sh
 bash scripts/package-macos.sh
 ```
 
-**Salida:** `target/dist/NEXUS-DAE-1.0.0.dmg`
-
-> ⚠️ Cada paquete debe construirse en su sistema operativo correspondiente.
-
-Para más detalles, consulta [PACKAGING.md](PACKAGING.md).
+#### Resultado y Distribución
+- El script generará los siguientes archivos bajo la ruta: `target/dist/`
+  - `NEXUS-DAE.app` (El bundle de aplicación nativa para macOS).
+  - `NEXUS-DAE-1.0.0.dmg` (La imagen de disco de instalación).
+- Para distribuir en macOS, se comparte el archivo `.dmg`. Al abrirlo, el usuario simplemente debe arrastrar la aplicación a su carpeta de **Aplicaciones**.
+- **Nota sobre Seguridad en macOS:** Dado que el paquete no está firmado con un certificado de desarrollador de Apple, la primera vez que se ejecute la aplicación en una máquina destino podría mostrar un bloqueo de seguridad. Para abrirla, el usuario debe ir a **Ajustes del Sistema > Privacidad y Seguridad** y seleccionar **Abrir de todos modos**, o bien hacer clic derecho sobre la aplicación instalada y seleccionar **Abrir**.
 
 ---
 
