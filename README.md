@@ -117,33 +117,15 @@ La aplicación se abrirá en pantalla completa mostrando la pantalla de login.
 
 ---
 
-## 📱 Flujo de la Aplicación
+## 📱 Flujo Sugerido de la Simulación
 
-```
-Login → AdminViewNew → CasesManagement (Gestión de Casos)
-  │                        ├── Ver detalle de caso (modal)
-  │                        ├── Agrupar casos (nuevo grupo / grupo existente)
-  │                        └── Tablero Analítico (PlayerView)
-  │                              ├── Nodos arrastrables
-  │                              ├── Conexiones entre casos
-  │                              ├── Zoom / Pan
-  │                              └── Exportar PDF
-  └→ Instrucciones (InstructionsView)
-```
+Para completar con éxito la actividad del simulador, el flujo de trabajo correcto e institucional recomendado es el siguiente:
 
-### Pantallas principales
-
-1. **LoginView** — Pantalla de bienvenida con animaciones. Acceso al simulador o a las instrucciones.
-2. **AdminViewNew** — Panel central del despacho fiscal.
-3. **CasesManagementBrownView** — Grid de tarjetas con:
-   - Búsqueda en tiempo real
-   - Visor de imagen con zoom y arrastre
-   - Selección múltiple para agrupación
-4. **PlayerView / PlayerViewBrown** — Tablero analítico tipo canvas:
-   - Nodos de casos arrastrables
-   - Conexiones con líneas
-   - Agrupaciones visuales con justificación
-   - Persistencia automática en JSON
+1. **Leer las Instrucciones (`InstructionsView`)**: Antes de iniciar, ingresa a la sección de instrucciones desde el menú de Login para comprender las mecánicas del juego, el uso del tablero y las reglas del reloj de investigación.
+2. **Analizar y Leer los Casos (`CasesManagementBrownView`)**: Navega a la gestión de casos, revisa cada una de las tarjetas disponibles y abre los detalles/imágenes de los casos para familiarizarte con las pruebas y los hechos.
+3. **Asociar Casos con su Justificación**: Selecciona los casos relacionados que consideres que pertenecen a una misma línea investigativa y agrégalos a un nuevo grupo (o agrégalos a uno existente). Es obligatorio escribir una justificación penal e investigativa sólida para esta asociación.
+4. **Justificar el Grupo (Tablero Analítico)**: Dirígete al tablero analítico (`PlayerView`), visualiza el cluster/grupo formado en el canvas y define/justifica la metadata global del grupo para consolidar la línea investigativa.
+5. **Generar el Reporte PDF**: Una vez organizada la información y estructurado el tablero analítico de la investigación, haz clic en el botón de exportación para generar el reporte de investigación formal en formato PDF.
 
 ---
 
@@ -157,10 +139,15 @@ La aplicación se puede distribuir como un paquete **auto-contenido** que incluy
 
 ### 🪟 Especificaciones para Windows
 
-#### Requisitos de Construcción
+#### Requisitos de Construcción (Desarrollador)
 - **JDK 17 o superior** con la herramienta `jpackage` disponible en el `PATH` o definida bajo la variable de entorno `JAVA_HOME`.
 - **Maven** instalado y configurado en las variables de entorno.
 - *(Opcional)* **WiX Toolset (v3.x)** si se desea empaquetar como instalador `.msi` en lugar de un archivo comprimido `.zip`.
+
+#### Requisitos para Ejecutar (Usuario Final)
+- **Sistema Operativo:** Windows 10 o superior (64-bit).
+- **Dependencias:** Ninguna (el paquete es auto-contenido y no requiere tener Java JDK/JRE instalado).
+- **Instalación:** Descomprimir el archivo `.zip` generado y ejecutar `NEXUS-DAE.exe` haciendo doble clic.
 
 #### Instrucciones de Empaquetado
 Ejecuta el script de PowerShell en una terminal con permisos apropiados:
@@ -177,10 +164,15 @@ Ejecuta el script de PowerShell en una terminal con permisos apropiados:
 
 ### 🍎 Especificaciones para macOS
 
-#### Requisitos de Construcción
+#### Requisitos de Construcción (Desarrollador)
 - **JDK 17 o superior** para macOS (compatible con la arquitectura del equipo: Intel o Apple Silicon M1/M2/M3).
 - **Maven** instalado (se puede instalar fácilmente vía [Homebrew](https://brew.sh) con `brew install maven`).
 - Permisos de ejecución habilitados para los scripts `.sh` de la carpeta `scripts/`.
+
+#### Requisitos para Ejecutar (Usuario Final)
+- **Sistema Operativo:** macOS 11.0 (Big Sur) o superior.
+- **Dependencias:** Ninguna (el ejecutable `.dmg` incluye su propio entorno Java auto-contenido).
+- **Instalación:** Abrir el `.dmg` y arrastrar `NEXUS-DAE.app` a la carpeta de **Aplicaciones**.
 
 #### Instrucciones de Empaquetado
 Asigna permisos de ejecución al script y lánzalo desde la terminal de macOS:
@@ -194,7 +186,9 @@ bash scripts/package-macos.sh
   - `NEXUS-DAE.app` (El bundle de aplicación nativa para macOS).
   - `NEXUS-DAE-1.0.0.dmg` (La imagen de disco de instalación).
 - Para distribuir en macOS, se comparte el archivo `.dmg`. Al abrirlo, el usuario simplemente debe arrastrar la aplicación a su carpeta de **Aplicaciones**.
-- **Nota sobre Seguridad en macOS:** Dado que el paquete no está firmado con un certificado de desarrollador de Apple, la primera vez que se ejecute la aplicación en una máquina destino podría mostrar un bloqueo de seguridad. Para abrirla, el usuario debe ir a **Ajustes del Sistema > Privacidad y Seguridad** y seleccionar **Abrir de todos modos**, o bien hacer clic derecho sobre la aplicación instalada y seleccionar **Abrir**.
+- **Nota sobre Seguridad en macOS (Gatekeeper):** Dado que el paquete no está firmado con un certificado de desarrollador de Apple, la primera vez que se ejecute la aplicación en una máquina destino podría mostrar un bloqueo de seguridad ("Desarrollador no identificado"). Para abrirla:
+  1. Haz clic derecho (o `Ctrl + clic`) sobre la aplicación en la carpeta de Aplicaciones y selecciona **Abrir**.
+  2. O bien, ve a **Ajustes del Sistema > Privacidad y Seguridad** y haz clic en **Abrir de todos modos**.
 
 ---
 
