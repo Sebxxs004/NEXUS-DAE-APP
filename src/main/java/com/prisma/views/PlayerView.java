@@ -2963,7 +2963,7 @@ public class PlayerView {
             new DecisionOptionDef(
                     "fenomeno",
                     "6. Fenómeno Criminal",
-                    "¿Qué fenómeno criminal se identifica?"),
+                    "Justifique"),
             new DecisionOptionDef(
                     "other",
                     "7. Otro.",
