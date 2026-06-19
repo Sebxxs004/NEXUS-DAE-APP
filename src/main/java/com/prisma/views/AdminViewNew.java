@@ -160,6 +160,7 @@ public class AdminViewNew {
     private void goBackToLogin() {
         timerTimeline.stop();
         DistractionAlertManager.stopMonitoring();
+        PlayerViewBrown.clearActiveInstance();
         Scene scene = new Scene(new LoginView(stage).getView(), 1500, 900);
         Theme.apply(scene);
         stage.setScene(scene);
@@ -177,8 +178,12 @@ public class AdminViewNew {
     }
 
     private void openAnalyticsBoard() {
-        PlayerViewBrown playerView = new PlayerViewBrown(stage);
-        Scene scene = new Scene(playerView.getView(), 1500, 900);
+        PlayerViewBrown playerView = PlayerViewBrown.getInstance(stage);
+        javafx.scene.Parent view = playerView.getView();
+        if (view.getScene() != null) {
+            view.getScene().setRoot(new javafx.scene.layout.Pane());
+        }
+        Scene scene = new Scene(view, 1500, 900);
         playerView.applyTheme(scene);
         stage.setScene(scene);
         stage.setMaximized(true);
@@ -305,7 +310,7 @@ public class AdminViewNew {
     private HBox buildActionBar() {
         HBox leftButton = makeActionBtn(
             FontAwesomeSolid.FOLDER_OPEN,
-            "Gestión de casos",
+            "Procesos del despacho",
             "Noticias criminales y expedientes",
             false,
             this::openCaseManagement
@@ -313,7 +318,7 @@ public class AdminViewNew {
 
         HBox rightButton = makeActionBtn(
             FontAwesomeSolid.CHART_BAR,
-            "Tablero analítico",
+            "Toma de decisiones",
             "Patrones y conexiones",
             true,
             this::openAnalyticsBoard

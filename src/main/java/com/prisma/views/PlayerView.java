@@ -125,8 +125,6 @@ public class PlayerView {
     private final Label connectionDialogTitle;
     private final Label connectionDialogSubtitle;
     private final ComboBox<String> connectionBasisBox;
-    private final VBox connectionDetailContainer;
-    private final TextField connectionDetailField;
     private final TextArea connectionReasonField;
     private final VBox isolatedNodesEntriesContainer;
     private final Map<CaseNode, TextArea> isolatedNodeReasonFields = new HashMap<>();
@@ -153,6 +151,7 @@ public class PlayerView {
     private List<GroupCluster> currentClusters = List.of();
     private CaseNode selectedNode;
     private CaseNode pendingConnectionTarget;
+    private List<CaseNode> pendingBatchNodes;
     private String selectedGroupSignature;
     private Stage stage;
     private final VBox casesCardsContainer;
@@ -251,7 +250,8 @@ public class PlayerView {
 
         investigationStartedAtMillis = System.currentTimeMillis();
         investigationSessionId = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss"));
-        investigationSnapshotPath = Paths.get(System.getProperty("user.home"), "Documents", "NEXUS", "investigacion-" + investigationSessionId + ".json");
+        investigationSnapshotPath = Paths.get(System.getProperty("user.home"), "Documents", "NEXUS",
+                "active-session-snapshot.json");
 
         timerLabel = new Label("TIEMPO " + formatDuration(INVESTIGATION_DURATION));
         timerLabel.getStyleClass().add("timer-pill");
@@ -266,6 +266,7 @@ public class PlayerView {
         logoutButton.getStyleClass().add("danger-button");
         logoutButton.setOnAction(e -> {
             DistractionAlertManager.stopMonitoring();
+            PlayerViewBrown.clearActiveInstance();
             LoginView loginView = new LoginView(stage);
             Scene scene = new Scene(loginView.getView(), 980, 680);
             Theme.apply(scene);
@@ -281,7 +282,8 @@ public class PlayerView {
         HBox.setHgrow(topRight, javafx.scene.layout.Priority.NEVER);
         topBar.getChildren().addAll(brandBlock, navCenter, topRight);
 
-        instructionLabel = new Label("Conecta esferas para crear hipótesis investigativas. Cada componente conectado se convierte en un grupo.");
+        instructionLabel = new Label(
+                "Conecta esferas para crear hipótesis investigativas. Cada componente conectado se convierte en un grupo.");
         instructionLabel.getStyleClass().add("instruction-strip");
         instructionLabel.setMaxWidth(Double.MAX_VALUE);
 
@@ -380,7 +382,8 @@ public class PlayerView {
         groupList = new ListView<>();
         groupList.getStyleClass().add("group-list");
         groupList.setPrefHeight(180);
-        groupList.getSelectionModel().selectedItemProperty().addListener((obs, oldValue, newValue) -> onGroupSelected(newValue));
+        groupList.getSelectionModel().selectedItemProperty()
+                .addListener((obs, oldValue, newValue) -> onGroupSelected(newValue));
 
         groupCardsContainer = new VBox(12);
         groupCardsContainer.setFillWidth(true);
@@ -519,9 +522,11 @@ public class PlayerView {
         imageControls.setAlignment(Pos.CENTER_RIGHT);
         VBox.setVgrow(imageControls, javafx.scene.layout.Priority.NEVER);
 
-        // Ajustar tamaño del ImageView al tamaño del viewport para que ocupe todo el espacio
+        // Ajustar tamaño del ImageView al tamaño del viewport para que ocupe todo el
+        // espacio
         caseImageScroll.viewportBoundsProperty().addListener((obs, oldB, newB) -> {
-            if (newB == null) return;
+            if (newB == null)
+                return;
             try {
                 caseDetailImageView.setFitWidth(newB.getWidth());
                 caseDetailImageView.setFitHeight(newB.getHeight());
@@ -531,9 +536,9 @@ public class PlayerView {
         });
 
         VBox caseDetailCard = new VBox(12,
-            new Label("Detalle del caso"),
-            imageControls,
-            caseImageScroll);
+                new Label("Detalle del caso"),
+                imageControls,
+                caseImageScroll);
         caseDetailCard.getStyleClass().add("panel-card");
         caseDetailCard.setPadding(new Insets(16));
 
@@ -559,29 +564,10 @@ public class PlayerView {
         connectionDialogSubtitle.getStyleClass().add("app-subtitle");
 
         connectionBasisBox = new ComboBox<>();
-        connectionBasisBox.getItems().addAll("Modalidad", "Modus operandi", "Patrón", "Criterio de Conexidad", "Otros");
+        connectionBasisBox.getItems().addAll("Modalidad", "Modus operandi", "Patrón", "Criterio de Conexidad",
+                "Fenomeno criminal", "Otros");
         connectionBasisBox.setValue("Modalidad");
         connectionBasisBox.setMaxWidth(Double.MAX_VALUE);
-
-        connectionDetailField = new TextField();
-        connectionDetailField.getStyleClass().add("input-field");
-        connectionDetailField.setPromptText("¿Cuál?");
-        connectionDetailField.setMaxWidth(Double.MAX_VALUE);
-
-        Label connectionDetailLabel = new Label("¿Cuál?");
-        connectionDetailLabel.getStyleClass().add("muted-text");
-        connectionDetailContainer = new VBox(6, connectionDetailLabel, connectionDetailField);
-        connectionDetailContainer.setVisible(false);
-        connectionDetailContainer.setManaged(false);
-
-        connectionBasisBox.valueProperty().addListener((obs, oldValue, newValue) -> {
-            boolean requiresDetail = "Criterio de Conexidad".equals(newValue) || "Otros".equals(newValue);
-            connectionDetailContainer.setVisible(requiresDetail);
-            connectionDetailContainer.setManaged(requiresDetail);
-            if (!requiresDetail) {
-                connectionDetailField.clear();
-            }
-        });
 
         connectionReasonField = new TextArea();
         connectionReasonField.getStyleClass().add("text-area");
@@ -602,7 +588,6 @@ public class PlayerView {
                 connectionDialogTitle,
                 connectionDialogSubtitle,
                 connectionBasisBox,
-                connectionDetailContainer,
                 connectionReasonField,
                 new HBox(10, confirmConnectionButton, cancelConnectionButton));
         connectionCard.getStyleClass().add("panel-card");
@@ -638,7 +623,8 @@ public class PlayerView {
         Label isolatedNodesTitle = new Label("Justificación de casos aislados");
         isolatedNodesTitle.getStyleClass().add("section-title");
 
-        Label isolatedNodesSubtitle = new Label("Antes de cerrar la investigación, explica por qué cada caso quedó sin grupo.");
+        Label isolatedNodesSubtitle = new Label(
+                "Antes de cerrar la investigación, explica por qué cada caso quedó sin grupo.");
         isolatedNodesSubtitle.getStyleClass().add("app-subtitle");
         isolatedNodesSubtitle.setWrapText(true);
 
@@ -659,10 +645,10 @@ public class PlayerView {
         cancelIsolatedNodesButton.setOnAction(e -> hideIsolatedNodesOverlay());
 
         VBox isolatedNodesCard = new VBox(12,
-            isolatedNodesTitle,
-            isolatedNodesSubtitle,
-            isolatedNodesScroll,
-            new HBox(10, confirmIsolatedNodesButton, cancelIsolatedNodesButton));
+                isolatedNodesTitle,
+                isolatedNodesSubtitle,
+                isolatedNodesScroll,
+                new HBox(10, confirmIsolatedNodesButton, cancelIsolatedNodesButton));
         isolatedNodesCard.getStyleClass().add("panel-card");
         isolatedNodesCard.setPadding(new Insets(18));
         isolatedNodesCard.setMaxWidth(640);
@@ -691,10 +677,10 @@ public class PlayerView {
             optionCheck.setMaxWidth(Double.MAX_VALUE);
             optionCheck.setStyle(
                     "-fx-font-size: 13px; " +
-                    "-fx-text-fill: #dbeafe; " +
-                    "-fx-padding: 4 0 4 0;");
-            optionCheck.selectedProperty().addListener((obs, wasSelected, isSelected) ->
-                    toggleDecisionJustificationRow(option, isSelected));
+                            "-fx-text-fill: #dbeafe; " +
+                            "-fx-padding: 4 0 4 0;");
+            optionCheck.selectedProperty()
+                    .addListener((obs, wasSelected, isSelected) -> toggleDecisionJustificationRow(option, isSelected));
             decisionOptionCheckboxes.put(option.id(), optionCheck);
             decisionOptionsContainer.getChildren().add(optionCheck);
         }
@@ -740,7 +726,8 @@ public class PlayerView {
         decisionOverlay.setAlignment(Pos.CENTER);
         StackPane.setAlignment(decisionCard, Pos.CENTER);
 
-        moduleHost.getChildren().addAll(boardModule, connectionDialogOverlay, isolatedNodesOverlay, decisionOverlay, pdfLoadingOverlay);
+        moduleHost.getChildren().addAll(boardModule, connectionDialogOverlay, isolatedNodesOverlay, decisionOverlay,
+                pdfLoadingOverlay);
 
         VBox content = new VBox(14, topBar, instructionLabel, moduleHost);
         view.setCenter(content);
@@ -748,6 +735,7 @@ public class PlayerView {
         playTopBarEntrance();
 
         loadCasos();
+        restoreInvestigationFromSnapshot();
         refreshConnections();
         refreshGroups();
         refreshCasesModule();
@@ -774,7 +762,7 @@ public class PlayerView {
         double height = safeHeight();
         double margin = NODE_RADIUS + 20;
         ThreadLocalRandom random = ThreadLocalRandom.current();
-        int index = 0;
+        int index = 1;
 
         for (Caso caso : casos) {
             CaseNode node = new CaseNode(caso, String.format("%02d", index));
@@ -803,7 +791,8 @@ public class PlayerView {
             if (selectedNode == null) {
                 selectedNode = node;
                 node.setSelected(true);
-                statusLabel.setText("Seleccionado: " + node.getCaso().getNombre() + ". Elige otro caso para asociarlo.");
+                statusLabel
+                        .setText("Seleccionado: " + node.getCaso().getNombre() + ". Elige otro caso para asociarlo.");
                 return;
             }
 
@@ -843,13 +832,21 @@ public class PlayerView {
         if (investigationFinished) {
             return;
         }
-        if (selectedNode == null || pendingConnectionTarget == null) {
+
+        boolean isBatch = pendingBatchNodes != null && pendingBatchNodes.size() >= 2;
+        if (!isBatch && (selectedNode == null || pendingConnectionTarget == null)) {
             return;
         }
 
-        connectionDialogTitle.setText("Justificación: " + selectedNode.getCaso().getNombre() + " → " + pendingConnectionTarget.getCaso().getNombre());
+        if (isBatch) {
+            connectionDialogTitle
+                    .setText("Justificación de asociación múltiple (" + pendingBatchNodes.size() + " casos)");
+        } else {
+            connectionDialogTitle.setText("Justificación: " + selectedNode.getCaso().getNombre() + " → "
+                    + pendingConnectionTarget.getCaso().getNombre());
+        }
+
         connectionBasisBox.setValue("Modalidad");
-        connectionDetailField.clear();
         connectionReasonField.clear();
         connectionDialogOverlay.setVisible(true);
         connectionDialogOverlay.setManaged(true);
@@ -861,7 +858,6 @@ public class PlayerView {
         connectionDialogOverlay.setVisible(false);
         connectionDialogOverlay.setManaged(false);
         connectionBasisBox.setValue("Modalidad");
-        connectionDetailField.clear();
         connectionReasonField.clear();
         if (selectedNode != null) {
             selectedNode.setSelected(false);
@@ -869,8 +865,14 @@ public class PlayerView {
         if (pendingConnectionTarget != null) {
             pendingConnectionTarget.setSelected(false);
         }
+        if (pendingBatchNodes != null) {
+            for (CaseNode node : pendingBatchNodes) {
+                node.setSelected(false);
+            }
+        }
         selectedNode = null;
         pendingConnectionTarget = null;
+        pendingBatchNodes = null;
         statusLabel.setText("Selección cancelada.");
     }
 
@@ -879,6 +881,43 @@ public class PlayerView {
             hideConnectionJustificationOverlay();
             return;
         }
+
+        if (pendingBatchNodes != null && !pendingBatchNodes.isEmpty()) {
+            String trimmed = connectionReasonField.getText().trim();
+            if (trimmed.isEmpty()) {
+                showAlert(Alert.AlertType.WARNING, "Escribe una justificación para continuar.");
+                return;
+            }
+
+            String basis = connectionBasisBox.getValue();
+            String connectionSummary = "Asociado por: " + basis + " | Justificación: " + trimmed;
+
+            // Create connections in a consecutive chain
+            for (int i = 0; i < pendingBatchNodes.size() - 1; i++) {
+                CaseNode from = pendingBatchNodes.get(i);
+                CaseNode to = pendingBatchNodes.get(i + 1);
+
+                boolean alreadyConnected = connections.stream()
+                        .anyMatch(conn -> (conn.from == from && conn.to == to) || (conn.from == to && conn.to == from));
+                if (!alreadyConnected) {
+                    connections.add(new Connection(from, to, connectionSummary));
+                }
+            }
+
+            refreshConnections();
+            refreshGroups();
+            persistInvestigationSnapshot();
+
+            statusLabel.setText("Conexiones en lote creadas para " + pendingBatchNodes.size() + " casos.");
+
+            for (CaseNode node : pendingBatchNodes) {
+                node.setSelected(false);
+            }
+            pendingBatchNodes = null;
+            hideConnectionJustificationOverlay();
+            return;
+        }
+
         if (selectedNode == null || pendingConnectionTarget == null) {
             hideConnectionJustificationOverlay();
             return;
@@ -891,24 +930,14 @@ public class PlayerView {
         }
 
         String basis = connectionBasisBox.getValue();
-        boolean requiresDetail = "Criterio de Conexidad".equals(basis) || "Otros".equals(basis);
-        String detail = connectionDetailField.getText().trim();
-        if (requiresDetail && detail.isBlank()) {
-            showAlert(Alert.AlertType.WARNING, "Indica ¿Cuál? para continuar.");
-            return;
-        }
-
-        String connectionSummary = "Asociado por: " + basis;
-        if (requiresDetail) {
-            connectionSummary += " - " + detail;
-        }
-        connectionSummary += " | Justificación: " + trimmed;
+        String connectionSummary = "Asociado por: " + basis + " | Justificación: " + trimmed;
 
         connections.add(new Connection(selectedNode, pendingConnectionTarget, connectionSummary));
         refreshConnections();
         refreshGroups();
         persistInvestigationSnapshot();
-        statusLabel.setText("Conexión creada entre " + selectedNode.getCaso().getNombre() + " y " + pendingConnectionTarget.getCaso().getNombre() + ".");
+        statusLabel.setText("Conexión creada entre " + selectedNode.getCaso().getNombre() + " y "
+                + pendingConnectionTarget.getCaso().getNombre() + ".");
 
         selectedNode.setSelected(false);
         pendingConnectionTarget.setSelected(false);
@@ -998,7 +1027,8 @@ public class PlayerView {
 
     private void refreshConnections() {
         connectionList.getItems().setAll(connections.stream()
-                .map(connection -> connection.from.getCaso().getNombre() + " ↔ " + connection.to.getCaso().getNombre() + " | " + connection.reason)
+                .map(connection -> connection.from.getCaso().getNombre() + " ↔ " + connection.to.getCaso().getNombre()
+                        + " | " + connection.reason)
                 .collect(Collectors.toList()));
 
         connectionLayer.getChildren().setAll(connections.stream()
@@ -1103,7 +1133,8 @@ public class PlayerView {
 
         groupList.getItems().setAll(currentClusters);
 
-        if (selectedGroupSignature != null && activeSignatures.stream().noneMatch(signature -> signature.equals(selectedGroupSignature))) {
+        if (selectedGroupSignature != null
+                && activeSignatures.stream().noneMatch(signature -> signature.equals(selectedGroupSignature))) {
             clearGroupSelection();
         }
 
@@ -1125,16 +1156,16 @@ public class PlayerView {
         Label numberLabel = new Label(String.valueOf(value));
         numberLabel.setStyle(
                 "-fx-font-size: 22; " +
-                "-fx-font-weight: bold; " +
-                "-fx-text-fill: " + (warning ? "#c8a03b" : "#d0e4ff") + "; " +
-                "-fx-font-family: 'Segoe UI', sans-serif;");
+                        "-fx-font-weight: bold; " +
+                        "-fx-text-fill: " + (warning ? "#c8a03b" : "#d0e4ff") + "; " +
+                        "-fx-font-family: 'Segoe UI', sans-serif;");
 
         Label captionLabel = new Label(caption);
         captionLabel.setWrapText(true);
         captionLabel.setStyle(
                 "-fx-font-size: 10; " +
-                "-fx-text-fill: #7ba3d8; " +
-                "-fx-font-family: 'Segoe UI', sans-serif;");
+                        "-fx-text-fill: #7ba3d8; " +
+                        "-fx-font-family: 'Segoe UI', sans-serif;");
 
         VBox chipContent = new VBox(2, numberLabel, captionLabel);
         chipContent.setAlignment(Pos.CENTER);
@@ -1145,11 +1176,11 @@ public class PlayerView {
         host.setAlignment(Pos.CENTER);
         host.setStyle(
                 "-fx-background-color: #0a1a3a; " +
-                "-fx-border-color: " + (warning ? "#c8a03b" : "#1a3a7a") + "; " +
-                "-fx-border-radius: 6; " +
-                "-fx-background-radius: 6; " +
-                "-fx-padding: 8 10 8 10; " +
-                "-fx-alignment: center;");
+                        "-fx-border-color: " + (warning ? "#c8a03b" : "#1a3a7a") + "; " +
+                        "-fx-border-radius: 6; " +
+                        "-fx-background-radius: 6; " +
+                        "-fx-padding: 8 10 8 10; " +
+                        "-fx-alignment: center;");
     }
 
     private void refreshCasesModule() {
@@ -1167,8 +1198,27 @@ public class PlayerView {
     }
 
     private VBox buildCaseCard(Caso caso) {
+        int caseIndex = CasoRepository.getCasos().indexOf(caso) + 1;
+        String formattedNum = String.format("%02d", caseIndex);
         Label title = new Label(caso.getNombre());
         title.getStyleClass().add("section-title");
+
+        Label badge = new Label(formattedNum);
+        badge.setStyle(
+                "-fx-background-color: #c8a03b; " +
+                        "-fx-text-fill: #0a1a3a; " +
+                        "-fx-font-size: 11; " +
+                        "-fx-font-weight: bold; " +
+                        "-fx-min-width: 22; " +
+                        "-fx-min-height: 22; " +
+                        "-fx-max-width: 22; " +
+                        "-fx-max-height: 22; " +
+                        "-fx-background-radius: 11; " +
+                        "-fx-alignment: center; " +
+                        "-fx-font-family: 'Segoe UI', sans-serif;");
+
+        HBox headerRow = new HBox(8, badge, title);
+        headerRow.setAlignment(Pos.CENTER_LEFT);
 
         Label meta = new Label(caso.getLugar() + " · " + caso.getFechaHechosFormateada());
         meta.getStyleClass().add("app-subtitle");
@@ -1181,7 +1231,7 @@ public class PlayerView {
         detailButton.getStyleClass().add("secondary-button");
         detailButton.setOnAction(e -> showCaseDetail(caso));
 
-        VBox card = new VBox(10, title, meta, summary, detailButton);
+        VBox card = new VBox(10, headerRow, meta, summary, detailButton);
         card.getStyleClass().add("panel-card");
         card.setPadding(new Insets(14));
         card.setOnMouseClicked(e -> showCaseDetail(caso));
@@ -1189,7 +1239,9 @@ public class PlayerView {
     }
 
     private String buildCaseDetails(Caso caso) {
-        return "📋 " + caso.getNombre() + "\n\n"
+        int caseIndex = CasoRepository.getCasos().indexOf(caso) + 1;
+        String formattedNum = String.format("%02d", caseIndex);
+        return "📋 [" + formattedNum + "] " + caso.getNombre() + "\n\n"
                 + "📍 Lugar: " + caso.getLugar() + "\n"
                 + "📅 Fecha: " + caso.getFechaHechosFormateada() + "\n\n"
                 + "📝 Descripción:\n" + caso.getDescripcion() + "\n\n"
@@ -1200,7 +1252,8 @@ public class PlayerView {
     }
 
     private void showCaseDetail(Caso caso) {
-        if (caso == null) return;
+        if (caso == null)
+            return;
         // hide textual area and show image-only view
         caseDetailArea.setVisible(false);
         caseDetailArea.setManaged(false);
@@ -1213,7 +1266,8 @@ public class PlayerView {
         }
 
         String rawPath = caso.getImagenPath();
-        if (rawPath == null || rawPath.isBlank()) return;
+        if (rawPath == null || rawPath.isBlank())
+            return;
 
         try {
             Path candidate = Paths.get(rawPath);
@@ -1262,10 +1316,12 @@ public class PlayerView {
 
     private void showBoardModule() {
         if (!moduleHost.getChildren().contains(boardModule)) {
-            moduleHost.getChildren().setAll(boardModule, connectionDialogOverlay, isolatedNodesOverlay, pdfLoadingOverlay);
+            moduleHost.getChildren().setAll(boardModule, connectionDialogOverlay, isolatedNodesOverlay,
+                    pdfLoadingOverlay);
         }
         setActiveTab(analyticalTab, casesTab);
-        instructionLabel.setText("Conecta esferas para crear hipótesis investigativas. Cada componente conectado se convierte en un grupo.");
+        instructionLabel.setText(
+                "Conecta esferas para crear hipótesis investigativas. Cada componente conectado se convierte en un grupo.");
         board.setVisible(true);
         board.setManaged(true);
         if (!boardModuleShownOnce) {
@@ -1338,10 +1394,12 @@ public class PlayerView {
     private void showCasesModule() {
         refreshCasesModule();
         if (!moduleHost.getChildren().contains(casesModule)) {
-            moduleHost.getChildren().setAll(casesModule, connectionDialogOverlay, isolatedNodesOverlay, pdfLoadingOverlay);
+            moduleHost.getChildren().setAll(casesModule, connectionDialogOverlay, isolatedNodesOverlay,
+                    pdfLoadingOverlay);
         }
         setActiveTab(casesTab, analyticalTab);
-        instructionLabel.setText("Revisa las tarjetas de cada caso y usa sus detalles para construir asociaciones más precisas.");
+        instructionLabel.setText(
+                "Revisa las tarjetas de cada caso y usa sus detalles para construir asociaciones más precisas.");
         board.setVisible(false);
         board.setManaged(false);
         if (!casesModuleShownOnce) {
@@ -1451,30 +1509,80 @@ public class PlayerView {
             return;
         }
 
+        // Support for batch relations when query contains commas
+        if (normalized.contains(",")) {
+            String[] parts = normalized.split(",");
+            List<CaseNode> targets = new ArrayList<>();
+            for (String part : parts) {
+                String cleanPart = part.trim();
+                if (cleanPart.isEmpty()) {
+                    continue;
+                }
+                String lowerPart = cleanPart.toLowerCase();
+                CaseNode found = nodes.stream()
+                        .filter(node -> node.getCaso().getNombre().equalsIgnoreCase(cleanPart)
+                                || buildSearchIndex(node.getCaso()).contains(lowerPart))
+                        .findFirst()
+                        .orElse(null);
+                if (found == null) {
+                    showAlert(Alert.AlertType.WARNING, "No se encontró el caso: " + cleanPart);
+                    return;
+                }
+                if (!targets.contains(found)) {
+                    targets.add(found);
+                }
+            }
+
+            if (targets.size() < 2) {
+                showAlert(Alert.AlertType.WARNING,
+                        "Debes especificar al menos 2 casos diferentes para crear una relación.");
+                return;
+            }
+
+            // Success batch match
+            pendingBatchNodes = targets;
+            for (CaseNode node : targets) {
+                node.setSelected(true);
+            }
+
+            centerBoardOnNode(targets.get(0));
+            statusLabel.setText(
+                    "Casos para asociar: " + targets.size() + " casos seleccionados. Registra su justificación.");
+
+            caseSearchSuggestions.getSelectionModel().clearSelection();
+            caseSearchSuggestions.setVisible(false);
+            caseSearchSuggestions.setManaged(false);
+
+            showConnectionJustificationOverlay();
+            return;
+        }
+
         String lowerQuery = normalized.toLowerCase();
         String suggestion = caseSearchSuggestions.getSelectionModel().getSelectedItem();
-        if (suggestion == null || "Sin coincidencias".equalsIgnoreCase(suggestion) || !suggestion.toLowerCase().contains(lowerQuery)) {
+        if (suggestion == null || "Sin coincidencias".equalsIgnoreCase(suggestion)
+                || !suggestion.toLowerCase().contains(lowerQuery)) {
             suggestion = caseSearchSuggestions.getItems().stream().findFirst().orElse(null);
         }
         final String resolvedSuggestion = suggestion;
 
         CaseNode target = nodes.stream()
-            .filter(node -> buildSearchIndex(node.getCaso()).contains(lowerQuery) || node.getCaso().getNombre().equalsIgnoreCase(normalized))
+                .filter(node -> buildSearchIndex(node.getCaso()).contains(lowerQuery)
+                        || node.getCaso().getNombre().equalsIgnoreCase(normalized))
                 .findFirst()
                 .orElse(null);
 
         if (target == null && resolvedSuggestion != null && !"Sin coincidencias".equalsIgnoreCase(resolvedSuggestion)) {
             target = nodes.stream()
-                .filter(node -> node.getCaso().getNombre().equalsIgnoreCase(resolvedSuggestion))
+                    .filter(node -> node.getCaso().getNombre().equalsIgnoreCase(resolvedSuggestion))
                     .findFirst()
                     .orElse(null);
         }
 
         if (target == null) {
             target = nodes.stream()
-                .filter(node -> buildSearchIndex(node.getCaso()).contains(lowerQuery))
-                .findFirst()
-                .orElse(null);
+                    .filter(node -> buildSearchIndex(node.getCaso()).contains(lowerQuery))
+                    .findFirst()
+                    .orElse(null);
         }
 
         if (target == null) {
@@ -1626,23 +1734,22 @@ public class PlayerView {
                     reasonField,
                     finalizedLabel,
                     decisionInfo,
-                    countLabel
-            );
+                    countLabel);
             nameField.setDisable(true);
             reasonField.setDisable(true);
             colorButton.setDisable(true);
         } else {
-            Button finalizeButton = new Button("Finalizar grupo");
+            Button finalizeButton = new Button("¿Que va a decidir ahora?");
             finalizeButton.getStyleClass().add("primary-button");
-            finalizeButton.setOnAction(e -> saveGroupCard(cluster.signature, nameField, reasonField, meta, colorButton));
+            finalizeButton
+                    .setOnAction(e -> saveGroupCard(cluster.signature, nameField, reasonField, meta, colorButton));
             card.getChildren().addAll(
                     headerRow,
                     membersIndexLabel,
                     membersNamesLabel,
                     reasonField,
                     finalizeButton,
-                    countLabel
-            );
+                    countLabel);
             if (investigationFinished) {
                 nameField.setDisable(true);
                 reasonField.setDisable(true);
@@ -1670,7 +1777,8 @@ public class PlayerView {
         return trimmed.substring(0, Math.max(0, maxLength - 3)) + "...";
     }
 
-    private void saveGroupCard(String signature, TextField nameField, TextArea reasonField, GroupMeta meta, Button colorButton) {
+    private void saveGroupCard(String signature, TextField nameField, TextArea reasonField, GroupMeta meta,
+            Button colorButton) {
         if (investigationFinished) {
             return;
         }
@@ -1698,8 +1806,8 @@ public class PlayerView {
 
     private boolean confirmFinalizeWithoutJustification() {
         Alert confirm = new Alert(Alert.AlertType.CONFIRMATION);
-        confirm.setTitle("Finalizar grupo");
-        confirm.setHeaderText("¿Desea finalizar el grupo sin justificación?");
+        confirm.setTitle("¿Qué vas a decidir?");
+        confirm.setHeaderText("¿Deseas finalizar el grupo sin justificación?");
         confirm.setContentText("Si continúa, deberá registrar la decisión que va a tomar.");
         if (stage != null) {
             confirm.initOwner(stage);
@@ -1752,8 +1860,8 @@ public class PlayerView {
             decisionJustificationFields.put(option.id(), justificationField);
             decisionJustificationsContainer.getChildren().add(row);
         } else {
-            decisionJustificationsContainer.getChildren().removeIf(node ->
-                    option.id().equals(node.getProperties().get("decisionId")));
+            decisionJustificationsContainer.getChildren()
+                    .removeIf(node -> option.id().equals(node.getProperties().get("decisionId")));
             decisionJustificationFields.remove(option.id());
         }
 
@@ -1920,7 +2028,7 @@ public class PlayerView {
                     "Investigación finalizada por " + reason + ".\nPDF generado en:\n" + pdfPath.toAbsolutePath());
             investigationFinished = true;
             finishingInProgress = false;
-            
+
             deleteGameDataAndExit();
         });
 
@@ -1928,11 +2036,27 @@ public class PlayerView {
             Throwable failure = exportTask.getException();
             statusLabel.setText("Investigación finalizada, pero hubo error al generar el PDF.");
             hidePdfLoadingOverlay();
+
+            Path backupTxt = exportBackupTextFile(reason, investigatorName);
+            String backupMsg = "";
+            if (backupTxt != null) {
+                backupMsg = "\n\nSe ha generado un archivo de respaldo de texto plano con tu trabajo en:\n"
+                        + backupTxt.toAbsolutePath();
+            } else {
+                backupMsg = "\n\n(No se pudo crear el archivo de respaldo de texto plano en Descargas).";
+            }
+
             showAlert(Alert.AlertType.ERROR,
                     "Investigación finalizada por " + reason + ", pero no se pudo generar el PDF.\n"
-                    + (failure == null ? "Error desconocido" : failure.getMessage()));
+                            + (failure == null ? "Error desconocido" : failure.getMessage())
+                            + backupMsg);
+
             investigationFinished = true;
             finishingInProgress = false;
+
+            if (backupTxt != null) {
+                deleteGameDataAndExit();
+            }
         });
 
         Thread worker = new Thread(exportTask, "NEXUS-pdf-export");
@@ -2074,8 +2198,10 @@ public class PlayerView {
             json.append("      \"name\": \"").append(escapeJson(meta.name)).append("\",\n");
             json.append("      \"reason\": \"").append(escapeJson(meta.reason)).append("\",\n");
             json.append("      \"finalized\": ").append(meta.finalized).append(",\n");
-            json.append("      \"decision\": \"").append(escapeJson(meta.mode != null ? meta.mode : "")).append("\",\n");
-            json.append("      \"decisionDetail\": \"").append(escapeJson(meta.decisionDetail != null ? meta.decisionDetail : "")).append("\",\n");
+            json.append("      \"decision\": \"").append(escapeJson(meta.mode != null ? meta.mode : ""))
+                    .append("\",\n");
+            json.append("      \"decisionDetail\": \"")
+                    .append(escapeJson(meta.decisionDetail != null ? meta.decisionDetail : "")).append("\",\n");
             json.append("      \"members\": [");
             for (int j = 0; j < cluster.members.size(); j++) {
                 CaseNode member = cluster.members.get(j);
@@ -2102,7 +2228,10 @@ public class PlayerView {
             CaseNode node = isolatedNodes.get(i);
             json.append("    {\n");
             json.append("      \"name\": \"").append(escapeJson(node.getCaso().getNombre())).append("\",\n");
-            json.append("      \"reason\": \"").append(escapeJson(normalizeJustification(isolatedNodeJustifications.get(node.getCaso().getNombre())))).append("\"\n");
+            json.append("      \"reason\": \"")
+                    .append(escapeJson(
+                            normalizeJustification(isolatedNodeJustifications.get(node.getCaso().getNombre()))))
+                    .append("\"\n");
             json.append("    }");
             if (i < isolatedNodes.size() - 1) {
                 json.append(",");
@@ -2154,6 +2283,87 @@ public class PlayerView {
         panning = false;
         board.setCursor(javafx.scene.Cursor.DEFAULT);
         hideConnectionJustificationOverlay();
+    }
+
+    private Path exportBackupTextFile(String endReason, String investigatorName) {
+        try {
+            Path downloads = Paths.get(System.getProperty("user.home"), "Downloads");
+            Files.createDirectories(downloads);
+            String timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss"));
+            Path backupFile = downloads.resolve("nexus-investigacion-backup-" + timestamp + ".txt");
+
+            ReportData reportData = buildInvestigationReportData(endReason, investigatorName);
+
+            StringBuilder content = new StringBuilder();
+            content.append("==================================================\n");
+            content.append("NEXUS DAE - RESPALDO DE INVESTIGACIÓN (TEXTO PLANO)\n");
+            content.append("==================================================\n\n");
+            content.append("Integrantes: ").append(reportData.investigatorName()).append("\n");
+            content.append("Fecha de cierre: ").append(reportData.closedAt()).append("\n");
+            content.append("Motivo de cierre: ").append(reportData.endReason()).append("\n");
+            content.append("Duración máxima: ").append(reportData.maxDuration()).append("\n\n");
+
+            content.append("--------------------------------------------------\n");
+            content.append("1. CONEXIONES ENTRE CASOS\n");
+            content.append("--------------------------------------------------\n");
+            if (reportData.connections().isEmpty()) {
+                content.append("- No se registraron conexiones.\n");
+            } else {
+                int index = 1;
+                for (var connection : reportData.connections()) {
+                    content.append(index).append(". ").append(connection.caseFrom()).append(" <-> ")
+                            .append(connection.caseTo()).append("\n");
+                    content.append("   Tipo de asociación: ").append(connection.associationType()).append("\n");
+                    content.append("   Justificación: ").append(connection.justification()).append("\n\n");
+                    index++;
+                }
+            }
+
+            content.append("--------------------------------------------------\n");
+            content.append("2. GRUPOS DE CASOS\n");
+            content.append("--------------------------------------------------\n");
+            if (reportData.groups().isEmpty()) {
+                content.append("- No se detectaron grupos.\n");
+            } else {
+                int index = 1;
+                for (var group : reportData.groups()) {
+                    String status = group.finalized() ? "Finalizado" : "En proceso";
+                    content.append(index).append(". ").append(group.name()).append(" (").append(group.memberCount())
+                            .append(" casos) [").append(status).append("]\n");
+                    content.append("   Justificación del grupo: ").append(group.groupJustification()).append("\n");
+                    content.append("   Casos incluidos: ").append(String.join(", ", group.memberNames())).append("\n");
+                    if (!group.decisions().isEmpty()) {
+                        content.append("   Decisiones del fiscal:\n");
+                        for (var decision : group.decisions()) {
+                            content.append("     - Decisión: ").append(decision.title()).append("\n");
+                            content.append("       Justificación: ").append(decision.justification()).append("\n");
+                        }
+                    }
+                    content.append("\n");
+                    index++;
+                }
+            }
+
+            content.append("--------------------------------------------------\n");
+            content.append("3. CASOS AISLADOS\n");
+            content.append("--------------------------------------------------\n");
+            if (reportData.isolatedCases().isEmpty()) {
+                content.append("- No quedaron casos aislados.\n");
+            } else {
+                int index = 1;
+                for (var isolated : reportData.isolatedCases()) {
+                    content.append(index).append(". ").append(isolated.caseName()).append("\n");
+                    content.append("   Justificación: ").append(isolated.justification()).append("\n\n");
+                    index++;
+                }
+            }
+
+            Files.writeString(backupFile, content.toString(), java.nio.charset.StandardCharsets.UTF_8);
+            return backupFile;
+        } catch (Exception e) {
+            e.printStackTrace();
+            return null;
+        }
     }
 
     private Path exportInvestigationPdf(String endReason, String investigatorName) throws IOException {
@@ -2250,29 +2460,111 @@ public class PlayerView {
     }
 
     private void arrangeGroupedNodes() {
-        for (GroupCluster cluster : currentClusters) {
+        int clusterCount = currentClusters.size();
+        double[] centroidsX = new double[clusterCount];
+        double[] centroidsY = new double[clusterCount];
+        double[] halfWidths = new double[clusterCount];
+        double[] halfHeights = new double[clusterCount];
+
+        // Phase 1: Compute initial centroids and estimated bounding box dimensions for
+        // each group
+        for (int c = 0; c < clusterCount; c++) {
+            GroupCluster cluster = currentClusters.get(c);
             int size = cluster.members.size();
             if (size < 2) {
                 continue;
             }
-
-            double centroidX = 0.0;
-            double centroidY = 0.0;
+            double cx = 0.0;
+            double cy = 0.0;
             for (CaseNode member : cluster.members) {
-                centroidX += member.centerX();
-                centroidY += member.centerY();
+                cx += member.centerX();
+                cy += member.centerY();
             }
-            centroidX /= size;
-            centroidY /= size;
+            centroidsX[c] = cx / size;
+            centroidsY[c] = cy / size;
 
+            // The nodes are placed in a circle of radius R around the centroid.
+            // Radius R is Math.max(68.0, 28.0 + size * 10.0).
+            double r = Math.max(68.0, 28.0 + size * 10.0);
+            // Bounding box extends to R + NODE_RADIUS + GROUP_PADDING on each side.
+            double extent = r + NODE_RADIUS + GROUP_PADDING + 15.0; // Added safety offset
+            halfWidths[c] = extent;
+            halfHeights[c] = extent;
+        }
+
+        // Phase 2: Iteratively push apart overlapping bounding boxes (AABB separation)
+        for (int iteration = 0; iteration < 50; iteration++) {
+            boolean moved = false;
+            for (int i = 0; i < clusterCount; i++) {
+                if (currentClusters.get(i).members.size() < 2)
+                    continue;
+                for (int j = i + 1; j < clusterCount; j++) {
+                    if (currentClusters.get(j).members.size() < 2)
+                        continue;
+
+                    double dx = centroidsX[j] - centroidsX[i];
+                    double dy = centroidsY[j] - centroidsY[i];
+                    double minDistanceX = halfWidths[i] + halfWidths[j];
+                    double minDistanceY = halfHeights[i] + halfHeights[j];
+
+                    double overlapX = minDistanceX - Math.abs(dx);
+                    double overlapY = minDistanceY - Math.abs(dy);
+
+                    // If overlapping in both dimensions, we have a collision
+                    if (overlapX > 0 && overlapY > 0) {
+                        moved = true;
+                        // Push along the axis of minimum penetration
+                        if (overlapX < overlapY) {
+                            double push = overlapX / 2.0;
+                            if (dx >= 0) {
+                                centroidsX[i] -= push;
+                                centroidsX[j] += push;
+                            } else {
+                                centroidsX[i] += push;
+                                centroidsX[j] -= push;
+                            }
+                        } else {
+                            double push = overlapY / 2.0;
+                            if (dy >= 0) {
+                                centroidsY[i] -= push;
+                                centroidsY[j] += push;
+                            } else {
+                                centroidsY[i] += push;
+                                centroidsY[j] -= push;
+                            }
+                        }
+                    }
+                }
+            }
+            if (!moved)
+                break;
+        }
+
+        // Clamp centroids to the board's safe area to keep groups completely visible
+        double boardW = safeWidth();
+        double boardH = safeHeight();
+        for (int c = 0; c < clusterCount; c++) {
+            if (currentClusters.get(c).members.size() < 2)
+                continue;
+            centroidsX[c] = clamp(centroidsX[c], halfWidths[c], boardW - halfWidths[c]);
+            centroidsY[c] = clamp(centroidsY[c], halfHeights[c], boardH - halfHeights[c]);
+        }
+
+        // Phase 3: Position the member nodes around their group's resolved centroid
+        for (int c = 0; c < clusterCount; c++) {
+            GroupCluster cluster = currentClusters.get(c);
+            int size = cluster.members.size();
+            if (size < 2) {
+                continue;
+            }
             double radius = Math.max(68.0, 28.0 + size * 10.0);
             for (int i = 0; i < size; i++) {
                 CaseNode member = cluster.members.get(i);
                 double angle = (Math.PI * 2.0 * i) / size;
-                double centerX = centroidX + Math.cos(angle) * radius;
-                double centerY = centroidY + Math.sin(angle) * radius;
-                double x = clamp(centerX - NODE_RADIUS, 0, safeWidth() - NODE_DIAMETER);
-                double y = clamp(centerY - NODE_RADIUS, 0, safeHeight() - NODE_DIAMETER);
+                double centerX = centroidsX[c] + Math.cos(angle) * radius;
+                double centerY = centroidsY[c] + Math.sin(angle) * radius;
+                double x = clamp(centerX - NODE_RADIUS, 0, boardW - NODE_DIAMETER);
+                double y = clamp(centerY - NODE_RADIUS, 0, boardH - NODE_DIAMETER);
                 member.setBoardPosition(x, y);
                 member.vx = 0;
                 member.vy = 0;
@@ -2333,7 +2625,8 @@ public class PlayerView {
     }
 
     private String buildSwatchStyle(Color color) {
-        return "-fx-background-color: " + toRgb(color) + "; -fx-background-radius: 6; -fx-border-radius: 6; -fx-border-color: rgba(103,232,249,0.40); -fx-border-width: 1;";
+        return "-fx-background-color: " + toRgb(color)
+                + "; -fx-background-radius: 6; -fx-border-radius: 6; -fx-border-color: rgba(103,232,249,0.40); -fx-border-width: 1;";
     }
 
     private String toRgb(Color color) {
@@ -2366,20 +2659,72 @@ public class PlayerView {
                     .collect(Collectors.toList());
             String signature = createSignature(members);
             String defaultGroupName = "Grupo " + sequence;
-            GroupMeta meta = metadataBySignature.computeIfAbsent(signature, key -> new GroupMeta(
-                    defaultGroupName,
-                    defaultGroupColor(signature),
-                    "Asociado por modalidad",
-                    "Sin justificación registrada",
-                    "",
-                    false
-            ));
+            GroupMeta meta = metadataBySignature.get(signature);
+            if (meta == null) {
+                // Signature changed (e.g. a case was added/removed).
+                // Try to inherit metadata from the old signature that shares the most members.
+                meta = findBestMatchingMeta(members);
+                if (meta != null) {
+                    // Migrate the old metadata to the new signature
+                    metadataBySignature.put(signature, meta);
+                } else {
+                    meta = new GroupMeta(
+                            defaultGroupName,
+                            defaultGroupColor(signature),
+                            "Asociado por modalidad",
+                            "Sin justificación registrada",
+                            "",
+                            false);
+                    metadataBySignature.put(signature, meta);
+                }
+            }
 
             clusters.add(new GroupCluster(signature, members, meta));
             sequence++;
         }
 
+        // Cleanup stale signatures that no longer match any cluster
+        Set<String> activeSignatures = clusters.stream()
+                .map(c -> c.signature)
+                .collect(Collectors.toSet());
+        metadataBySignature.keySet().retainAll(activeSignatures);
+
         return clusters;
+    }
+
+    private GroupMeta findBestMatchingMeta(List<CaseNode> newMembers) {
+        Set<String> newNames = newMembers.stream()
+                .map(n -> n.getCaso().getNombre())
+                .collect(Collectors.toSet());
+
+        String bestSignature = null;
+        int bestOverlap = 0;
+
+        for (Map.Entry<String, GroupMeta> entry : metadataBySignature.entrySet()) {
+            Set<String> oldNames = new HashSet<>(List.of(entry.getKey().split("\\|")));
+            int overlap = 0;
+            for (String name : oldNames) {
+                if (newNames.contains(name)) {
+                    overlap++;
+                }
+            }
+            // Must share at least 2 members (a real group) and be the best match
+            if (overlap >= 2 && overlap > bestOverlap) {
+                bestOverlap = overlap;
+                bestSignature = entry.getKey();
+            }
+        }
+
+        if (bestSignature != null) {
+            GroupMeta inherited = metadataBySignature.remove(bestSignature);
+            // Also migrate or cleanup the overlay to avoid visual stacking
+            GroupOverlay oldOverlay = overlayBySignature.remove(bestSignature);
+            if (oldOverlay != null) {
+                groupLayer.getChildren().removeAll(oldOverlay.rectangle, oldOverlay.nameLabel);
+            }
+            return inherited;
+        }
+        return null;
     }
 
     private void collectGroup(CaseNode node, Set<CaseNode> group) {
@@ -2431,8 +2776,10 @@ public class PlayerView {
             overlay.rectangle.setY(bounds.minY - GROUP_PADDING);
             overlay.rectangle.setWidth(bounds.width + GROUP_PADDING * 2.0);
             overlay.rectangle.setHeight(bounds.height + GROUP_PADDING * 2.0);
-            overlay.rectangle.setFill(Color.color(meta.color.getRed(), meta.color.getGreen(), meta.color.getBlue(), 0.08));
-            overlay.rectangle.setStroke(Color.color(meta.color.getRed(), meta.color.getGreen(), meta.color.getBlue(), 0.92));
+            overlay.rectangle
+                    .setFill(Color.color(meta.color.getRed(), meta.color.getGreen(), meta.color.getBlue(), 0.08));
+            overlay.rectangle
+                    .setStroke(Color.color(meta.color.getRed(), meta.color.getGreen(), meta.color.getBlue(), 0.92));
             overlay.rectangle.setStrokeWidth(3.2);
 
             overlay.nameLabel.setText(meta.name);
@@ -2505,21 +2852,22 @@ public class PlayerView {
 
     private void deleteGameDataAndExit() {
         try {
+            Files.deleteIfExists(investigationSnapshotPath);
             Path casosDir = Paths.get("casos");
             if (Files.exists(casosDir)) {
                 Files.walk(casosDir)
-                     .sorted(Comparator.reverseOrder())
-                     .map(Path::toFile)
-                     .forEach(java.io.File::delete);
+                        .sorted(Comparator.reverseOrder())
+                        .map(Path::toFile)
+                        .forEach(java.io.File::delete);
             }
             Path alertasDir = Paths.get("alertas");
             if (Files.exists(alertasDir)) {
                 Files.walk(alertasDir)
-                     .sorted(Comparator.reverseOrder())
-                     .map(Path::toFile)
-                     .forEach(java.io.File::delete);
+                        .sorted(Comparator.reverseOrder())
+                        .map(Path::toFile)
+                        .forEach(java.io.File::delete);
             }
-            
+
             // Eliminar el instalador del escritorio según el sistema operativo
             String home = System.getProperty("user.home");
             String os = System.getProperty("os.name", "").toLowerCase();
@@ -2613,8 +2961,12 @@ public class PlayerView {
                     "5. Caracterización de víctimas.",
                     "¿Por qué debe caracterizarse a las víctimas?"),
             new DecisionOptionDef(
+                    "fenomeno",
+                    "6. Fenómeno Criminal",
+                    "¿Qué fenómeno criminal se identifica?"),
+            new DecisionOptionDef(
                     "other",
-                    "6. Otro.",
+                    "7. Otro.",
                     "¿Cuál es la otra decisión y su fundamento?"));
 
     private static final class GroupMeta {
@@ -2626,7 +2978,8 @@ public class PlayerView {
         private String decisionDetail;
         private boolean finalized;
 
-        private GroupMeta(String name, Color color, String mode, String reason, String decisionDetail, boolean finalized) {
+        private GroupMeta(String name, Color color, String mode, String reason, String decisionDetail,
+                boolean finalized) {
             this.name = name;
             this.color = color;
             this.mode = mode;
@@ -2647,13 +3000,13 @@ public class PlayerView {
         }
     }
 
-    private static final class GroupCluster {
+    static final class GroupCluster {
 
-        private final String signature;
-        private final List<CaseNode> members;
-        private final GroupMeta meta;
+        final String signature;
+        final List<CaseNode> members;
+        final GroupMeta meta;
 
-        private GroupCluster(String signature, List<CaseNode> members, GroupMeta meta) {
+        GroupCluster(String signature, List<CaseNode> members, GroupMeta meta) {
             this.signature = signature;
             this.members = members;
             this.meta = meta;
@@ -2663,6 +3016,369 @@ public class PlayerView {
         public String toString() {
             return meta.name + " · " + members.size() + " casos";
         }
+    }
+
+    public boolean isCaseGrouped(Caso caso) {
+        if (caso == null) {
+            return false;
+        }
+        for (CaseNode node : nodes) {
+            if (node.getCaso().getNombre().equalsIgnoreCase(caso.getNombre())) {
+                return isGroupedNode(node);
+            }
+        }
+        return false;
+    }
+
+    public List<GroupCluster> getCurrentClusters() {
+        return currentClusters;
+    }
+
+    public void addCasesToGroup(List<Caso> casesToAdd, GroupCluster targetGroup, String basis, String detail,
+            String reason) {
+        if (casesToAdd == null || casesToAdd.isEmpty() || targetGroup == null || investigationFinished) {
+            return;
+        }
+
+        List<CaseNode> targetNodes = new ArrayList<>();
+        for (Caso c : casesToAdd) {
+            for (CaseNode node : nodes) {
+                if (node.getCaso().getNombre().equalsIgnoreCase(c.getNombre())) {
+                    targetNodes.add(node);
+                    break;
+                }
+            }
+        }
+
+        if (targetNodes.isEmpty()) {
+            return;
+        }
+
+        CaseNode targetMember = targetGroup.members.get(0);
+
+        String connectionSummary = "Asociado por: " + basis;
+        if (detail != null && !detail.isBlank()) {
+            connectionSummary += " - " + detail;
+        }
+        connectionSummary += " | Justificación: " + reason;
+
+        // Connect the selected cases consecutively
+        for (int i = 0; i < targetNodes.size() - 1; i++) {
+            CaseNode from = targetNodes.get(i);
+            CaseNode to = targetNodes.get(i + 1);
+            boolean alreadyConnected = connections.stream()
+                    .anyMatch(conn -> (conn.from == from && conn.to == to) || (conn.from == to && conn.to == from));
+            if (!alreadyConnected) {
+                connections.add(new Connection(from, to, connectionSummary));
+            }
+        }
+
+        // Connect the first of the selected cases to the target group member
+        CaseNode firstNewNode = targetNodes.get(0);
+        boolean alreadyConnected = connections.stream()
+                .anyMatch(conn -> (conn.from == firstNewNode && conn.to == targetMember)
+                        || (conn.from == targetMember && conn.to == firstNewNode));
+        if (!alreadyConnected) {
+            connections.add(new Connection(firstNewNode, targetMember, connectionSummary));
+        }
+
+        refreshConnections();
+        refreshGroups();
+        persistInvestigationSnapshot();
+    }
+
+    public void createBatchConnections(List<Caso> casos, String basis, String detail, String reason) {
+        if (casos == null || casos.size() < 2 || investigationFinished) {
+            return;
+        }
+
+        List<CaseNode> targetNodes = new ArrayList<>();
+        for (Caso c : casos) {
+            for (CaseNode node : nodes) {
+                if (node.getCaso().getNombre().equalsIgnoreCase(c.getNombre())) {
+                    targetNodes.add(node);
+                    break;
+                }
+            }
+        }
+
+        if (targetNodes.size() < 2) {
+            return;
+        }
+
+        String connectionSummary = "Asociado por: " + basis;
+        if (detail != null && !detail.isBlank()) {
+            connectionSummary += " - " + detail;
+        }
+        connectionSummary += " | Justificación: " + reason;
+
+        // Connect consecutively
+        for (int i = 0; i < targetNodes.size() - 1; i++) {
+            CaseNode from = targetNodes.get(i);
+            CaseNode to = targetNodes.get(i + 1);
+
+            boolean alreadyConnected = connections.stream()
+                    .anyMatch(conn -> (conn.from == from && conn.to == to) || (conn.from == to && conn.to == from));
+            if (!alreadyConnected) {
+                connections.add(new Connection(from, to, connectionSummary));
+            }
+        }
+
+        refreshConnections();
+        refreshGroups();
+        persistInvestigationSnapshot();
+    }
+
+    private void restoreInvestigationFromSnapshot() {
+        if (!Files.exists(investigationSnapshotPath)) {
+            return;
+        }
+
+        try {
+            String json = Files.readString(investigationSnapshotPath, StandardCharsets.UTF_8);
+
+            // --- Restore connections ---
+            int connIndex = json.indexOf("\"connections\":");
+            if (connIndex >= 0) {
+                int connArrayStart = json.indexOf('[', connIndex);
+                int connArrayEnd = findMatchingBracket(json, connArrayStart);
+                if (connArrayStart >= 0 && connArrayEnd > connArrayStart) {
+                    String connSection = json.substring(connArrayStart, connArrayEnd + 1);
+                    int objStart = 0;
+                    while (true) {
+                        objStart = connSection.indexOf('{', objStart);
+                        if (objStart < 0)
+                            break;
+                        int objEnd = connSection.indexOf('}', objStart);
+                        if (objEnd < 0)
+                            break;
+                        String obj = connSection.substring(objStart, objEnd + 1);
+                        String from = extractJsonValue(obj, "from");
+                        String to = extractJsonValue(obj, "to");
+                        String detail = extractJsonValue(obj, "detail");
+                        if (!from.isEmpty() && !to.isEmpty()) {
+                            CaseNode nodeFrom = findNodeByName(from);
+                            CaseNode nodeTo = findNodeByName(to);
+                            if (nodeFrom != null && nodeTo != null) {
+                                boolean alreadyConnected = connections.stream()
+                                        .anyMatch(c -> (c.from == nodeFrom && c.to == nodeTo)
+                                                || (c.from == nodeTo && c.to == nodeFrom));
+                                if (!alreadyConnected) {
+                                    connections.add(new Connection(nodeFrom, nodeTo, detail));
+                                }
+                            }
+                        }
+                        objStart = objEnd + 1;
+                    }
+                }
+            }
+
+            // Rebuild clusters so we can populate metadataBySignature
+            currentClusters = detectClusters();
+            rebuildGroupedNodesMap();
+
+            // --- Restore groups metadata ---
+            int groupsIndex = json.indexOf("\"groups\":");
+            if (groupsIndex >= 0) {
+                int groupsArrayStart = json.indexOf('[', groupsIndex);
+                int groupsArrayEnd = findMatchingBracket(json, groupsArrayStart);
+                if (groupsArrayStart >= 0 && groupsArrayEnd > groupsArrayStart) {
+                    String groupsSection = json.substring(groupsArrayStart, groupsArrayEnd + 1);
+                    int objStart = 0;
+                    while (true) {
+                        objStart = groupsSection.indexOf('{', objStart);
+                        if (objStart < 0)
+                            break;
+                        int objEnd = groupsSection.indexOf('}', objStart);
+                        if (objEnd < 0)
+                            break;
+                        String obj = groupsSection.substring(objStart, objEnd + 1);
+                        String name = extractJsonValue(obj, "name");
+                        String reason = extractJsonValue(obj, "reason");
+                        boolean finalized = "true".equalsIgnoreCase(extractJsonValue(obj, "finalized"));
+                        String decision = extractJsonValue(obj, "decision");
+                        String decisionDetail = extractJsonValue(obj, "decisionDetail");
+
+                        int membersStart = obj.indexOf("\"members\":");
+                        if (membersStart >= 0) {
+                            int mArrStart = obj.indexOf('[', membersStart);
+                            int mArrEnd = obj.indexOf(']', mArrStart);
+                            if (mArrStart >= 0 && mArrEnd > mArrStart) {
+                                String membersList = obj.substring(mArrStart + 1, mArrEnd);
+                                List<String> memberNames = new ArrayList<>();
+                                for (String member : membersList.split(",")) {
+                                    String clean = member.replace("\"", "").trim();
+                                    if (!clean.isEmpty()) {
+                                        memberNames.add(clean);
+                                    }
+                                }
+                                memberNames.sort(String.CASE_INSENSITIVE_ORDER);
+                                String signature = String.join("|", memberNames);
+
+                                GroupMeta meta = metadataBySignature.get(signature);
+                                if (meta == null) {
+                                    meta = new GroupMeta(name, defaultGroupColor(signature), decision, reason,
+                                            decisionDetail, finalized);
+                                    metadataBySignature.put(signature, meta);
+                                } else {
+                                    meta.name = name;
+                                    meta.reason = reason;
+                                    meta.finalized = finalized;
+                                    meta.mode = decision;
+                                    meta.decisionDetail = decisionDetail;
+                                }
+                            }
+                        }
+                        objStart = objEnd + 1;
+                    }
+                }
+            }
+
+            // --- Restore isolated node justifications ---
+            int isolatedIndex = json.indexOf("\"isolatedNodes\":");
+            if (isolatedIndex >= 0) {
+                int isoArrayStart = json.indexOf('[', isolatedIndex);
+                int isoArrayEnd = findMatchingBracket(json, isoArrayStart);
+                if (isoArrayStart >= 0 && isoArrayEnd > isoArrayStart) {
+                    String isoSection = json.substring(isoArrayStart, isoArrayEnd + 1);
+                    int objStart = 0;
+                    while (true) {
+                        objStart = isoSection.indexOf('{', objStart);
+                        if (objStart < 0)
+                            break;
+                        int objEnd = isoSection.indexOf('}', objStart);
+                        if (objEnd < 0)
+                            break;
+                        String obj = isoSection.substring(objStart, objEnd + 1);
+                        String isoName = extractJsonValue(obj, "name");
+                        String isoReason = extractJsonValue(obj, "reason");
+                        if (!isoName.isEmpty() && !isoReason.isEmpty() && !"Sin justificación".equals(isoReason)) {
+                            isolatedNodeJustifications.put(isoName, isoReason);
+                        }
+                        objStart = objEnd + 1;
+                    }
+                }
+            }
+
+            // --- Restore alert records ---
+            int alertsIndex = json.indexOf("\"alerts\":");
+            if (alertsIndex >= 0) {
+                int alertArrayStart = json.indexOf('[', alertsIndex);
+                int alertArrayEnd = findMatchingBracket(json, alertArrayStart);
+                if (alertArrayStart >= 0 && alertArrayEnd > alertArrayStart) {
+                    String alertsSection = json.substring(alertArrayStart, alertArrayEnd + 1);
+                    int objStart = 0;
+                    while (true) {
+                        objStart = alertsSection.indexOf('{', objStart);
+                        if (objStart < 0)
+                            break;
+                        int objEnd = alertsSection.indexOf('}', objStart);
+                        if (objEnd < 0)
+                            break;
+                        String obj = alertsSection.substring(objStart, objEnd + 1);
+                        String timestamp = extractJsonValue(obj, "timestamp");
+                        String image = extractJsonValue(obj, "image");
+                        String status = extractJsonValue(obj, "status");
+                        String response = extractJsonValue(obj, "response");
+                        if (!image.isEmpty()) {
+                            boolean exists = DistractionAlertManager.getAlertRecords().stream()
+                                    .anyMatch(r -> r.getImageName().equalsIgnoreCase(image));
+                            if (!exists) {
+                                DistractionAlertManager.addOfflineAlertRecord(timestamp, image, status, response);
+                            }
+                        }
+                        objStart = objEnd + 1;
+                    }
+                }
+            }
+
+            statusLabel.setText("Progreso restaurado desde la última sesión local.");
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            statusLabel.setText("No se pudo cargar el progreso anterior.");
+        }
+    }
+
+    private int findMatchingBracket(String json, int openIndex) {
+        if (openIndex < 0 || openIndex >= json.length()) {
+            return -1;
+        }
+        char open = json.charAt(openIndex);
+        char close = open == '[' ? ']' : '}';
+        int depth = 0;
+        boolean inString = false;
+        for (int i = openIndex; i < json.length(); i++) {
+            char c = json.charAt(i);
+            if (c == '\\' && inString) {
+                i++; // skip escaped char
+                continue;
+            }
+            if (c == '"') {
+                inString = !inString;
+                continue;
+            }
+            if (inString)
+                continue;
+            if (c == open)
+                depth++;
+            else if (c == close) {
+                depth--;
+                if (depth == 0)
+                    return i;
+            }
+        }
+        return -1;
+    }
+
+    private String extractJsonValue(String block, String key) {
+        int keyIndex = block.indexOf("\"" + key + "\":");
+        if (keyIndex < 0) {
+            return "";
+        }
+        int valStart = keyIndex + key.length() + 3;
+        while (valStart < block.length() && Character.isWhitespace(block.charAt(valStart))) {
+            valStart++;
+        }
+        if (valStart >= block.length()) {
+            return "";
+        }
+
+        if (block.charAt(valStart) == '"') {
+            int valEnd = valStart + 1;
+            while (valEnd < block.length()) {
+                if (block.charAt(valEnd) == '"' && block.charAt(valEnd - 1) != '\\') {
+                    break;
+                }
+                valEnd++;
+            }
+            if (valEnd < block.length()) {
+                return block.substring(valStart + 1, valEnd)
+                        .replace("\\\"", "\"")
+                        .replace("\\\\", "\\")
+                        .replace("\\n", "\n")
+                        .replace("\\r", "\r");
+            }
+        } else {
+            int valEnd = valStart;
+            while (valEnd < block.length() && !Character.isWhitespace(block.charAt(valEnd))
+                    && block.charAt(valEnd) != ',' && block.charAt(valEnd) != '}' && block.charAt(valEnd) != '\n') {
+                valEnd++;
+            }
+            return block.substring(valStart, valEnd).trim();
+        }
+        return "";
+    }
+
+    private CaseNode findNodeByName(String name) {
+        if (name == null)
+            return null;
+        for (CaseNode node : nodes) {
+            if (node.getCaso().getNombre().equalsIgnoreCase(name)) {
+                return node;
+            }
+        }
+        return null;
     }
 
     private static final class CaseNode extends StackPane {

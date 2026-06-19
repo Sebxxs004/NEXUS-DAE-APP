@@ -231,7 +231,7 @@ public class InstructionsView {
 
     private VBox buildSection1() {
         VBox section = new VBox(18);
-        section.getChildren().add(sectionHeader("⚖️", "Bienvenido al Despacho", "Dispone de dos horas para revisar su despacho y tomar las primeras decisiones."));
+        section.getChildren().add(sectionHeader("⚖️", "Bienvenido al Despacho", "Dispone de tres horas para revisar su despacho y tomar las primeras decisiones. Su despacho es mixto, conoce de diferentes delitos y temáticas."));
         section.getChildren().add(infoBox("Acaba de llegar a su oficina. El reloj institucional marca el inicio de su jornada y la acumulación de trabajo ya es evidente."));
 
         GridPane alertGrid = new GridPane();

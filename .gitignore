@@ -1,3 +1,22 @@
-
-target/dist/
+# Compilados y paquetes
+target/
+tmp/
+jlink-runtime/
+jlink-runtime-mac/
+javafx-jmods-extract/
 *.zip
+*.dmg
+*.exe
+
+# Carpeta local de recursos de prueba
+casos/
+alertas/
+
+# Configuraciones de IDE
+.idea/
+.vscode/
+*.iml
+.settings/
+.project
+.classpath
+.factorypath

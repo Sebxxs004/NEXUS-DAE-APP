@@ -1328,6 +1328,16 @@ public final class DistractionAlertManager {
                 .replace("\r", "\\r");
     }
 
+    public static void addOfflineAlertRecord(String timestamp, String imageName, String status, String responseText) {
+        synchronized (LOCK) {
+            AlertRecord record = new AlertRecord(imageName, timestamp);
+            record.status = status;
+            record.responseText = responseText != null ? responseText : "";
+            ALERT_RECORDS.add(record);
+            USED_IMAGE_KEYS.add(imageName);
+        }
+    }
+
     public static final class AlertRecord {
         private final String imageName;
         private final String createdAt;
@@ -1339,6 +1349,12 @@ public final class DistractionAlertManager {
             this.imageName = imageName;
             this.createdAt = LocalDateTime.now().format(FORMATTER);
             this.updatedAt = this.createdAt;
+        }
+
+        private AlertRecord(String imageName, String timestamp) {
+            this.imageName = imageName;
+            this.createdAt = timestamp;
+            this.updatedAt = timestamp;
         }
 
         public String getImageName() {

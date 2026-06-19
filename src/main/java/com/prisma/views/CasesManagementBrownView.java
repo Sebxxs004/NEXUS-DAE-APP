@@ -3,6 +3,8 @@ package com.prisma.views;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Comparator;
+import java.util.HashMap;
+import java.util.Map;
 
 import com.prisma.data.CasoRepository;
 import com.prisma.models.Caso;
@@ -59,6 +61,7 @@ public class CasesManagementBrownView {
     private Label modalHintLabel;
     private Button modalLocateButton;
     private Caso modalCurrentCase;
+    private java.util.List<Caso> currentCases = new java.util.ArrayList<>();
     private StackPane modalImageViewport;
     private VBox modalCard;
     private double modalZoom = 1.0;
@@ -69,7 +72,21 @@ public class CasesManagementBrownView {
     private double dragStartTranslateX;
     private double dragStartTranslateY;
 
+    // Batch grouping state
+    private final java.util.Set<Caso> selectedCasesForBatch = new java.util.HashSet<>();
+    private HBox batchButtonsContainer;
+    private Button batchGroupNewButton;
+    private Button batchGroupExistingButton;
+    private StackPane batchJustificationOverlay;
+    private StackPane addToGroupOverlay;
+
+    // Performance caches
+    private final Map<String, Boolean> fileExistsCache = new HashMap<>();
+    private final Map<String, Image> imageCache = new HashMap<>();
+    private final Stage stage;
+
     public CasesManagementBrownView(Stage stage) {
+        this.stage = stage;
         Label shield = new Label("⚖");
         shield.setMinSize(28, 28);
         shield.setPrefSize(28, 28);
@@ -212,7 +229,44 @@ public class CasesManagementBrownView {
         );
         searchField.getProperties().put("caseCountLabel", caseCountLabel);
 
-        HBox searchRow = new HBox(12, searchIcon, searchField, caseCountLabel);
+        batchGroupNewButton = new Button("Crear nuevo grupo");
+        batchGroupNewButton.setStyle(
+            "-fx-background-color: #2563c8; " +
+            "-fx-border-color: #3b7de0; " +
+            "-fx-border-radius: 6; " +
+            "-fx-background-radius: 6; " +
+            "-fx-border-width: 1; " +
+            "-fx-padding: 6 12 6 12; " +
+            "-fx-text-fill: white; " +
+            "-fx-font-weight: bold; " +
+            "-fx-font-size: 11; " +
+            "-fx-font-family: " + FONT + "; " +
+            "-fx-cursor: hand;"
+        );
+        batchGroupNewButton.setOnAction(e -> showBatchJustificationOverlay());
+
+        batchGroupExistingButton = new Button("Agregar a grupo");
+        batchGroupExistingButton.setStyle(
+            "-fx-background-color: #10b981; " +
+            "-fx-border-color: #34d399; " +
+            "-fx-border-radius: 6; " +
+            "-fx-background-radius: 6; " +
+            "-fx-border-width: 1; " +
+            "-fx-padding: 6 12 6 12; " +
+            "-fx-text-fill: white; " +
+            "-fx-font-weight: bold; " +
+            "-fx-font-size: 11; " +
+            "-fx-font-family: " + FONT + "; " +
+            "-fx-cursor: hand;"
+        );
+        batchGroupExistingButton.setOnAction(e -> showAddToGroupOverlay());
+
+        batchButtonsContainer = new HBox(8, batchGroupNewButton, batchGroupExistingButton);
+        batchButtonsContainer.setAlignment(Pos.CENTER_LEFT);
+        batchButtonsContainer.setVisible(false);
+        batchButtonsContainer.setManaged(false);
+
+        HBox searchRow = new HBox(12, searchIcon, searchField, caseCountLabel, batchButtonsContainer);
         searchRow.setAlignment(Pos.CENTER_LEFT);
         searchRow.setPadding(new Insets(10, 16, 10, 16));
         searchRow.setStyle(
@@ -261,7 +315,15 @@ public class CasesManagementBrownView {
         modalOverlay.setVisible(false);
         modalOverlay.setManaged(false);
 
-        view = new StackPane(contentShell, modalOverlay);
+        batchJustificationOverlay = buildBatchJustificationOverlay(stage);
+        batchJustificationOverlay.setVisible(false);
+        batchJustificationOverlay.setManaged(false);
+
+        addToGroupOverlay = buildAddToGroupOverlay(stage);
+        addToGroupOverlay.setVisible(false);
+        addToGroupOverlay.setManaged(false);
+
+        view = new StackPane(contentShell, modalOverlay, batchJustificationOverlay, addToGroupOverlay);
         view.setStyle("-fx-background-color: #08142e;");
 
         refreshGrid(stage);
@@ -292,14 +354,21 @@ public class CasesManagementBrownView {
                         || containsIgnoreCase(caso.getDescripcion(), normalizedQuery))
                 .toList();
 
-        casesGrid.getChildren().setAll(filtered.stream()
-                .map(caso -> buildCaseCard(stage, caso))
-                .toList());
+        currentCases = filtered;
 
         Object countLabel = searchField.getProperties().get("caseCountLabel");
         if (countLabel instanceof Label label) {
             label.setText(filtered.size() + " casos");
         }
+
+        // Deferred rendering: show UI shell immediately, populate cards in next frame
+        casesGrid.getChildren().clear();
+        final var snapshot = java.util.List.copyOf(filtered);
+        javafx.application.Platform.runLater(() -> {
+            casesGrid.getChildren().setAll(snapshot.stream()
+                    .map(caso -> buildCaseCard(stage, caso))
+                    .toList());
+        });
     }
 
     private VBox buildCaseCard(Stage stage, Caso caso) {
@@ -311,7 +380,7 @@ public class CasesManagementBrownView {
 
         boolean hasCaseImage = caso != null && caso.tieneImagen()
                 && caso.getImagenPath() != null
-                && Files.exists(Path.of(caso.getImagenPath()));
+                && cachedFileExists(caso.getImagenPath());
 
         if (hasCaseImage) {
             ImageView preview = new ImageView(loadCaseImage(caso));
@@ -328,6 +397,27 @@ public class CasesManagementBrownView {
             placeholder.setAlignment(Pos.CENTER);
             imageArea.getChildren().add(placeholder);
         }
+
+        int caseIndex = com.prisma.data.CasoRepository.getCasos().indexOf(caso) + 1;
+        String formattedNum = String.format("%02d", caseIndex);
+
+        Label numberBadge = new Label(formattedNum);
+        numberBadge.setStyle(
+            "-fx-background-color: #c8a03b; " +
+            "-fx-text-fill: #0a1a3a; " +
+            "-fx-font-size: 11; " +
+            "-fx-font-weight: bold; " +
+            "-fx-min-width: 24; " +
+            "-fx-min-height: 24; " +
+            "-fx-max-width: 24; " +
+            "-fx-max-height: 24; " +
+            "-fx-background-radius: 12; " +
+            "-fx-alignment: center; " +
+            "-fx-font-family: " + FONT + ";"
+        );
+        StackPane.setAlignment(numberBadge, Pos.TOP_LEFT);
+        StackPane.setMargin(numberBadge, new Insets(8, 0, 0, 8));
+        imageArea.getChildren().add(numberBadge);
 
         Label nameLabel = new Label(caso.getNombre());
         nameLabel.setMaxWidth(200);
@@ -393,6 +483,35 @@ public class CasesManagementBrownView {
         ));
         detailsButton.setOnAction(e -> openCaseModal(stage, caso));
 
+        HBox statusRow = new HBox(8);
+        statusRow.setAlignment(Pos.CENTER_LEFT);
+        statusRow.setPadding(new Insets(6, 11, 4, 11));
+        
+        boolean isGrouped = PlayerViewBrown.getInstance(stage).isCaseGrouped(caso);
+        if (isGrouped) {
+            Label statusBadge = new Label("🟢 Agrupado");
+            statusBadge.setStyle("-fx-text-fill: #10b981; -fx-font-weight: bold; -fx-font-size: 11; -fx-font-family: " + FONT + ";");
+            statusRow.getChildren().add(statusBadge);
+        } else {
+            javafx.scene.control.CheckBox selectBox = new javafx.scene.control.CheckBox();
+            selectBox.setSelected(selectedCasesForBatch.contains(caso));
+            selectBox.setStyle("-fx-cursor: hand;");
+
+            Label statusBadge = new Label("⚪ No agrupado");
+            statusBadge.setStyle("-fx-text-fill: #94a3b8; -fx-font-size: 11; -fx-font-family: " + FONT + ";");
+
+            selectBox.selectedProperty().addListener((obs, oldVal, newVal) -> {
+                if (newVal) {
+                    selectedCasesForBatch.add(caso);
+                } else {
+                    selectedCasesForBatch.remove(caso);
+                }
+                updateBatchButtonState();
+            });
+
+            statusRow.getChildren().addAll(selectBox, statusBadge);
+        }
+
         HBox footer = new HBox(8, nameLabel, copyNameButton, detailsButton);
         footer.setAlignment(Pos.CENTER_LEFT);
         footer.setPadding(new Insets(9, 11, 9, 11));
@@ -402,7 +521,7 @@ public class CasesManagementBrownView {
         );
         HBox.setHgrow(nameLabel, Priority.ALWAYS);
 
-        VBox card = new VBox(imageArea, footer);
+        VBox card = new VBox(imageArea, statusRow, footer);
         card.setPrefWidth(290);
         card.setMinWidth(290);
         card.setMaxWidth(290);
@@ -673,14 +792,84 @@ public class CasesManagementBrownView {
             "-fx-border-width: 1;"
         );
 
-        StackPane modalRoot = new StackPane(backdrop, modalCard);
+        String arrowStyle = 
+            "-fx-background-color: rgba(13, 36, 89, 0.7); " +
+            "-fx-border-color: rgba(59, 125, 224, 0.5); " +
+            "-fx-border-width: 1.5; " +
+            "-fx-background-radius: 25; " +
+            "-fx-border-radius: 25; " +
+            "-fx-text-fill: #d0e4ff; " +
+            "-fx-font-size: 28; " +
+            "-fx-font-weight: bold; " +
+            "-fx-padding: 0 0 5 0; " +
+            "-fx-min-width: 50; " +
+            "-fx-min-height: 50; " +
+            "-fx-pref-width: 50; " +
+            "-fx-pref-height: 50; " +
+            "-fx-cursor: hand; " +
+            "-fx-alignment: center;";
+        String arrowHoverStyle = 
+            "-fx-background-color: rgba(37, 99, 200, 0.9); " +
+            "-fx-border-color: #3b7de0; " +
+            "-fx-border-width: 1.5; " +
+            "-fx-background-radius: 25; " +
+            "-fx-border-radius: 25; " +
+            "-fx-text-fill: white; " +
+            "-fx-font-size: 28; " +
+            "-fx-font-weight: bold; " +
+            "-fx-padding: 0 0 5 0; " +
+            "-fx-min-width: 50; " +
+            "-fx-min-height: 50; " +
+            "-fx-pref-width: 50; " +
+            "-fx-pref-height: 50; " +
+            "-fx-cursor: hand; " +
+            "-fx-alignment: center;";
+
+        Button prevButton = new Button("‹");
+        prevButton.setStyle(arrowStyle);
+        prevButton.setOnMouseEntered(e -> prevButton.setStyle(arrowHoverStyle));
+        prevButton.setOnMouseExited(e -> prevButton.setStyle(arrowStyle));
+        prevButton.setOnAction(e -> navigateCase(-1, stage));
+
+        Button nextButton = new Button("›");
+        nextButton.setStyle(arrowStyle);
+        nextButton.setOnMouseEntered(e -> nextButton.setStyle(arrowHoverStyle));
+        nextButton.setOnMouseExited(e -> nextButton.setStyle(arrowStyle));
+        nextButton.setOnAction(e -> navigateCase(1, stage));
+
+        StackPane.setAlignment(prevButton, Pos.CENTER_LEFT);
+        StackPane.setAlignment(nextButton, Pos.CENTER_RIGHT);
+        StackPane.setMargin(prevButton, new Insets(0, 0, 0, 40));
+        StackPane.setMargin(nextButton, new Insets(0, 40, 0, 0));
+
+        StackPane modalRoot = new StackPane(backdrop, modalCard, prevButton, nextButton);
         StackPane.setAlignment(modalCard, Pos.CENTER);
         return modalRoot;
     }
 
+    private void navigateCase(int offset, Stage stage) {
+        if (currentCases == null || currentCases.isEmpty() || modalCurrentCase == null) {
+            return;
+        }
+        int index = currentCases.indexOf(modalCurrentCase);
+        if (index == -1) {
+            return;
+        }
+        int newIndex = index + offset;
+        if (newIndex < 0) {
+            newIndex = currentCases.size() - 1;
+        } else if (newIndex >= currentCases.size()) {
+            newIndex = 0;
+        }
+        Caso targetCase = currentCases.get(newIndex);
+        openCaseModal(stage, targetCase);
+    }
+
     private void openCaseModal(Stage stage, Caso caso) {
         modalCurrentCase = caso;
-        modalTitleLabel.setText(caso.getNombre());
+        int caseIndex = com.prisma.data.CasoRepository.getCasos().indexOf(caso) + 1;
+        String formattedNum = String.format("%02d", caseIndex);
+        modalTitleLabel.setText(formattedNum + " - " + caso.getNombre());
         modalHintLabel.setText("Arrastra para mover · Rueda para hacer zoom");
         modalHintLabel.setOpacity(1.0);
         modalHintLabel.setVisible(true);
@@ -723,8 +912,12 @@ public class CasesManagementBrownView {
         if (modalCurrentCase == null) {
             return;
         }
-        PlayerViewBrown playerViewBrown = new PlayerViewBrown(stage);
-        Scene scene = new Scene(playerViewBrown.getView(), 1500, 900);
+        PlayerViewBrown playerViewBrown = PlayerViewBrown.getInstance(stage);
+        javafx.scene.Parent view = playerViewBrown.getView();
+        if (view.getScene() != null) {
+            view.getScene().setRoot(new javafx.scene.layout.Pane());
+        }
+        Scene scene = new Scene(view, 1500, 900);
         playerViewBrown.applyTheme(scene);
         stage.setScene(scene);
         stage.setMaximized(true);
@@ -734,12 +927,28 @@ public class CasesManagementBrownView {
 
     private Image loadCaseImage(Caso caso) {
         if (caso != null && caso.tieneImagen()) {
-            Path path = Path.of(caso.getImagenPath());
-            if (Files.exists(path)) {
-                return new Image(path.toUri().toString());
+            String imgPath = caso.getImagenPath();
+            if (imgPath != null && cachedFileExists(imgPath)) {
+                return imageCache.computeIfAbsent(imgPath, key -> {
+                    String uri = Path.of(key).toUri().toString();
+                    // Async background loading with thumbnail resolution for cards
+                    return new Image(uri, 580, 280, true, true, true);
+                });
             }
         }
-        return new Image(getClass().getResourceAsStream("/styles/assets/fondo-case.jpeg"));
+        return imageCache.computeIfAbsent("__default__", key ->
+                new Image(getClass().getResourceAsStream("/styles/assets/fondo-case.jpeg")));
+    }
+
+    /** Cached file-existence check to avoid repeated disk I/O per card render. */
+    private boolean cachedFileExists(String path) {
+        return fileExistsCache.computeIfAbsent(path, key -> {
+            try {
+                return Files.exists(Path.of(key));
+            } catch (Exception e) {
+                return false;
+            }
+        });
     }
 
     private void refreshTimer() {
@@ -854,6 +1063,165 @@ public class CasesManagementBrownView {
         }
     }
 
+    private void updateBatchButtonState() {
+        int count = selectedCasesForBatch.size();
+        boolean hasExistingGroups = !PlayerViewBrown.getInstance(stage).getCurrentClusters().isEmpty();
+
+        batchGroupNewButton.setText("Crear nuevo grupo (" + count + ")");
+        batchGroupNewButton.setVisible(count >= 2);
+        batchGroupNewButton.setManaged(count >= 2);
+
+        batchGroupExistingButton.setText("Agregar a grupo (" + count + ")");
+        batchGroupExistingButton.setVisible(count >= 1 && hasExistingGroups);
+        batchGroupExistingButton.setManaged(count >= 1 && hasExistingGroups);
+
+        boolean showContainer = (count >= 2) || (count >= 1 && hasExistingGroups);
+        batchButtonsContainer.setVisible(showContainer);
+        batchButtonsContainer.setManaged(showContainer);
+    }
+
+    private void showBatchJustificationOverlay() {
+        batchJustificationOverlay.setVisible(true);
+        batchJustificationOverlay.setManaged(true);
+        batchJustificationOverlay.toFront();
+    }
+
+    private void hideBatchJustificationOverlay() {
+        batchJustificationOverlay.setVisible(false);
+        batchJustificationOverlay.setManaged(false);
+    }
+
+    private StackPane buildBatchJustificationOverlay(Stage stage) {
+        StackPane backdrop = new StackPane();
+        backdrop.setStyle("-fx-background-color: rgba(4, 9, 26, 0.82);");
+
+        VBox dialog = new VBox(14);
+        dialog.setMaxWidth(460);
+        dialog.setMaxHeight(Region.USE_PREF_SIZE);
+        dialog.setPadding(new Insets(24));
+        dialog.setStyle(
+            "-fx-background-color: #0b1a3a; " +
+            "-fx-border-color: #1a3a7a; " +
+            "-fx-border-width: 2; " +
+            "-fx-border-radius: 12; " +
+            "-fx-background-radius: 12;"
+        );
+
+        Label titleLabel = new Label("Justificar Asociación Múltiple");
+        titleLabel.setStyle(
+            "-fx-font-size: 15; " +
+            "-fx-font-weight: bold; " +
+            "-fx-text-fill: #f0c96e; " +
+            "-fx-font-family: " + FONT + ";"
+        );
+
+        Label subtitleLabel = new Label("Se creará una relación en cadena para los casos seleccionados.");
+        subtitleLabel.setStyle(
+            "-fx-font-size: 11; " +
+            "-fx-text-fill: #7ba3d8; " +
+            "-fx-font-family: " + FONT + ";"
+        );
+
+        Label basisLabel = new Label("Asociar por:");
+        basisLabel.setStyle("-fx-text-fill: #d0e4ff; -fx-font-size: 11; -fx-font-family: " + FONT + ";");
+
+        javafx.scene.control.ComboBox<String> basisBox = new javafx.scene.control.ComboBox<>();
+        basisBox.getItems().addAll("Modalidad", "Modus operandi", "Patrón", "Criterio de Conexidad", "Fenomeno criminal", "Otros");
+        basisBox.setValue("Modalidad");
+        basisBox.setMaxWidth(Double.MAX_VALUE);
+        basisBox.setStyle(
+            "-fx-background-color: #08142e; " +
+            "-fx-border-color: #1a3a7a; " +
+            "-fx-border-radius: 6; " +
+            "-fx-background-radius: 6; " +
+            "-fx-text-fill: white;"
+        );
+
+        Label reasonLabel = new Label("Justificación:");
+        reasonLabel.setStyle("-fx-text-fill: #d0e4ff; -fx-font-size: 11; -fx-font-family: " + FONT + ";");
+
+        javafx.scene.control.TextArea reasonField = new javafx.scene.control.TextArea();
+        reasonField.setPromptText("Escribe los detalles de la asociación...");
+        reasonField.setPrefRowCount(3);
+        reasonField.setWrapText(true);
+        reasonField.setStyle(
+            "-fx-control-inner-background: #08142e; " +
+            "-fx-text-fill: white; " +
+            "-fx-border-color: #1a3a7a; " +
+            "-fx-border-radius: 6; " +
+            "-fx-background-radius: 6;"
+        );
+
+        Button confirmButton = new Button("Confirmar");
+        confirmButton.setStyle(
+            "-fx-background-color: #22c55e; " +
+            "-fx-text-fill: white; " +
+            "-fx-font-weight: bold; " +
+            "-fx-border-radius: 6; " +
+            "-fx-background-radius: 6; " +
+            "-fx-padding: 6 16 6 16; " +
+            "-fx-cursor: hand;"
+        );
+        confirmButton.setOnAction(e -> {
+            String reason = reasonField.getText().trim();
+            if (reason.isEmpty()) {
+                showAlert(javafx.scene.control.Alert.AlertType.WARNING, "Escribe una justificación.");
+                return;
+            }
+
+            String basis = basisBox.getValue();
+            String detail = "";
+
+            java.util.List<Caso> list = new java.util.ArrayList<>(selectedCasesForBatch);
+            // Connect them via PlayerView
+            PlayerViewBrown.getInstance(stage).createBatchConnections(list, basis, detail, reason);
+
+            selectedCasesForBatch.clear();
+            updateBatchButtonState();
+            hideBatchJustificationOverlay();
+            
+            // Redraw grid
+            refreshGrid(stage);
+            
+            showAlert(javafx.scene.control.Alert.AlertType.INFORMATION, "Asociación en lote creada con éxito en el tablero.");
+        });
+
+        Button cancelButton = new Button("Cancelar");
+        cancelButton.setStyle(
+            "-fx-background-color: #64748b; " +
+            "-fx-text-fill: white; " +
+            "-fx-border-radius: 6; " +
+            "-fx-background-radius: 6; " +
+            "-fx-padding: 6 16 6 16; " +
+            "-fx-cursor: hand;"
+        );
+        cancelButton.setOnAction(e -> {
+            hideBatchJustificationOverlay();
+        });
+
+        HBox actions = new HBox(12, cancelButton, confirmButton);
+        actions.setAlignment(Pos.CENTER_RIGHT);
+
+        dialog.getChildren().addAll(
+            titleLabel,
+            subtitleLabel,
+            basisLabel,
+            basisBox,
+            reasonLabel,
+            reasonField,
+            actions
+        );
+
+        backdrop.getChildren().add(dialog);
+        return backdrop;
+    }
+
+    private void showAlert(javafx.scene.control.Alert.AlertType type, String message) {
+        javafx.scene.control.Alert alert = new javafx.scene.control.Alert(type);
+        alert.setContentText(message);
+        alert.showAndWait();
+    }
+
     private boolean containsIgnoreCase(String value, String query) {
         return value != null && query != null && value.toLowerCase().contains(query);
     }
@@ -864,5 +1232,178 @@ public class CasesManagementBrownView {
 
     private String boardStylesheet() {
         return java.util.Objects.requireNonNull(getClass().getResource("/styles/board-brown.css")).toExternalForm();
+    }
+
+    private void showAddToGroupOverlay() {
+        Object comboObj = addToGroupOverlay.getProperties().get("groupComboBox");
+        if (comboObj instanceof javafx.scene.control.ComboBox combo) {
+            combo.getItems().setAll(PlayerViewBrown.getInstance(stage).getCurrentClusters());
+            if (!combo.getItems().isEmpty()) {
+                combo.setValue((PlayerView.GroupCluster) combo.getItems().get(0));
+            }
+        }
+        Object reasonObj = addToGroupOverlay.getProperties().get("reasonField");
+        if (reasonObj instanceof javafx.scene.control.TextArea reasonField) {
+            reasonField.clear();
+        }
+
+        addToGroupOverlay.setVisible(true);
+        addToGroupOverlay.setManaged(true);
+        addToGroupOverlay.toFront();
+    }
+
+    private void hideAddToGroupOverlay() {
+        addToGroupOverlay.setVisible(false);
+        addToGroupOverlay.setManaged(false);
+    }
+
+    private StackPane buildAddToGroupOverlay(Stage stage) {
+        StackPane backdrop = new StackPane();
+        backdrop.setStyle("-fx-background-color: rgba(4, 9, 26, 0.82);");
+
+        VBox dialog = new VBox(14);
+        dialog.setMaxWidth(460);
+        dialog.setMaxHeight(Region.USE_PREF_SIZE);
+        dialog.setPadding(new Insets(24));
+        dialog.setStyle(
+            "-fx-background-color: #0b1a3a; " +
+            "-fx-border-color: #1a3a7a; " +
+            "-fx-border-width: 2; " +
+            "-fx-border-radius: 12; " +
+            "-fx-background-radius: 12;"
+        );
+
+        Label titleLabel = new Label("Agregar a Grupo Existente");
+        titleLabel.setStyle(
+            "-fx-font-size: 15; " +
+            "-fx-font-weight: bold; " +
+            "-fx-text-fill: #f0c96e; " +
+            "-fx-font-family: " + FONT + ";"
+        );
+
+        Label subtitleLabel = new Label("Se asociarán los casos seleccionados al grupo elegido.");
+        subtitleLabel.setStyle(
+            "-fx-font-size: 11; " +
+            "-fx-text-fill: #7ba3d8; " +
+            "-fx-font-family: " + FONT + ";"
+        );
+
+        Label groupLabel = new Label("Seleccionar Grupo:");
+        groupLabel.setStyle("-fx-text-fill: #d0e4ff; -fx-font-size: 11; -fx-font-family: " + FONT + ";");
+
+        javafx.scene.control.ComboBox<PlayerView.GroupCluster> groupComboBox = new javafx.scene.control.ComboBox<>();
+        groupComboBox.setMaxWidth(Double.MAX_VALUE);
+        groupComboBox.setStyle(
+            "-fx-background-color: #08142e; " +
+            "-fx-border-color: #1a3a7a; " +
+            "-fx-border-radius: 6; " +
+            "-fx-background-radius: 6; " +
+            "-fx-text-fill: white;"
+        );
+
+        Label basisLabel = new Label("Asociar por:");
+        basisLabel.setStyle("-fx-text-fill: #d0e4ff; -fx-font-size: 11; -fx-font-family: " + FONT + ";");
+
+        javafx.scene.control.ComboBox<String> basisBox = new javafx.scene.control.ComboBox<>();
+        basisBox.getItems().addAll("Modalidad", "Modus operandi", "Patrón", "Criterio de Conexidad", "Fenomeno criminal", "Otros");
+        basisBox.setValue("Modalidad");
+        basisBox.setMaxWidth(Double.MAX_VALUE);
+        basisBox.setStyle(
+            "-fx-background-color: #08142e; " +
+            "-fx-border-color: #1a3a7a; " +
+            "-fx-border-radius: 6; " +
+            "-fx-background-radius: 6; " +
+            "-fx-text-fill: white;"
+        );
+
+        Label reasonLabel = new Label("Justificación:");
+        reasonLabel.setStyle("-fx-text-fill: #d0e4ff; -fx-font-size: 11; -fx-font-family: " + FONT + ";");
+
+        javafx.scene.control.TextArea reasonField = new javafx.scene.control.TextArea();
+        reasonField.setPromptText("Escribe los detalles de la asociación...");
+        reasonField.setPrefRowCount(3);
+        reasonField.setWrapText(true);
+        reasonField.setStyle(
+            "-fx-control-inner-background: #08142e; " +
+            "-fx-text-fill: white; " +
+            "-fx-border-color: #1a3a7a; " +
+            "-fx-border-radius: 6; " +
+            "-fx-background-radius: 6;"
+        );
+
+        Button confirmButton = new Button("Confirmar");
+        confirmButton.setStyle(
+            "-fx-background-color: #22c55e; " +
+            "-fx-text-fill: white; " +
+            "-fx-font-weight: bold; " +
+            "-fx-border-radius: 6; " +
+            "-fx-background-radius: 6; " +
+            "-fx-padding: 6 16 6 16; " +
+            "-fx-cursor: hand;"
+        );
+        confirmButton.setOnAction(e -> {
+            PlayerView.GroupCluster targetGroup = groupComboBox.getValue();
+            if (targetGroup == null) {
+                showAlert(javafx.scene.control.Alert.AlertType.WARNING, "Selecciona un grupo existente.");
+                return;
+            }
+
+            String reason = reasonField.getText().trim();
+            if (reason.isEmpty()) {
+                showAlert(javafx.scene.control.Alert.AlertType.WARNING, "Escribe una justificación.");
+                return;
+            }
+
+            String basis = basisBox.getValue();
+            String detail = "";
+
+            java.util.List<Caso> list = new java.util.ArrayList<>(selectedCasesForBatch);
+            // Connect/Add them via PlayerView
+            PlayerViewBrown.getInstance(stage).addCasesToGroup(list, targetGroup, basis, detail, reason);
+
+            selectedCasesForBatch.clear();
+            updateBatchButtonState();
+            hideAddToGroupOverlay();
+
+            // Redraw grid
+            refreshGrid(stage);
+
+            showAlert(javafx.scene.control.Alert.AlertType.INFORMATION, "Casos agregados al grupo con éxito.");
+        });
+
+        Button cancelButton = new Button("Cancelar");
+        cancelButton.setStyle(
+            "-fx-background-color: #64748b; " +
+            "-fx-text-fill: white; " +
+            "-fx-border-radius: 6; " +
+            "-fx-background-radius: 6; " +
+            "-fx-padding: 6 16 6 16; " +
+            "-fx-cursor: hand;"
+        );
+        cancelButton.setOnAction(e -> {
+            hideAddToGroupOverlay();
+        });
+
+        HBox actions = new HBox(12, cancelButton, confirmButton);
+        actions.setAlignment(Pos.CENTER_RIGHT);
+
+        dialog.getChildren().addAll(
+            titleLabel,
+            subtitleLabel,
+            groupLabel,
+            groupComboBox,
+            basisLabel,
+            basisBox,
+            reasonLabel,
+            reasonField,
+            actions
+        );
+
+        backdrop.getChildren().add(dialog);
+
+        backdrop.getProperties().put("groupComboBox", groupComboBox);
+        backdrop.getProperties().put("reasonField", reasonField);
+
+        return backdrop;
     }
 }

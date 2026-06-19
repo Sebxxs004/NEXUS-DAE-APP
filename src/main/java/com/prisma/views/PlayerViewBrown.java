@@ -48,6 +48,19 @@ import javafx.util.Duration;
 public class PlayerViewBrown {
     private static final String FONT = "'Segoe UI'";
 
+    private static PlayerViewBrown activeInstance = null;
+
+    public static PlayerViewBrown getInstance(Stage stage) {
+        if (activeInstance == null) {
+            activeInstance = new PlayerViewBrown(stage);
+        }
+        return activeInstance;
+    }
+
+    public static void clearActiveInstance() {
+        activeInstance = null;
+    }
+
     private final BorderPane view;
     private final Label timerLabel;
     private final HBox timerBadge;
@@ -1295,5 +1308,33 @@ public class PlayerViewBrown {
                 walkNodes(child, visitor);
             }
         }
+    }
+
+    public boolean isCaseGrouped(com.prisma.models.Caso caso) {
+        if (playerView == null) {
+            return false;
+        }
+        return playerView.isCaseGrouped(caso);
+    }
+
+    public List<PlayerView.GroupCluster> getCurrentClusters() {
+        if (playerView == null) {
+            return List.of();
+        }
+        return playerView.getCurrentClusters();
+    }
+
+    public void addCasesToGroup(List<com.prisma.models.Caso> casesToAdd, PlayerView.GroupCluster targetGroup, String basis, String detail, String reason) {
+        if (playerView == null) {
+            return;
+        }
+        playerView.addCasesToGroup(casesToAdd, targetGroup, basis, detail, reason);
+    }
+
+    public void createBatchConnections(List<com.prisma.models.Caso> casos, String basis, String detail, String reason) {
+        if (playerView == null) {
+            return;
+        }
+        playerView.createBatchConnections(casos, basis, detail, reason);
     }
 }
