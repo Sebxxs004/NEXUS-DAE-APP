@@ -231,7 +231,25 @@ public class InstructionsView {
 
     private VBox buildSection1() {
         VBox section = new VBox(18);
-        section.getChildren().add(sectionHeader("⚖️", "Bienvenido al Despacho", "Dispone de tres horas para revisar su despacho y tomar las primeras decisiones. Su despacho es mixto, conoce de diferentes delitos y temáticas."));
+        section.getChildren().add(sectionHeader("⚖️", "Bienvenido al Despacho", "Dispone de tres horas para revisar su despacho y tomar las primeras decisiones."));
+        
+        Label highlightLabel = new Label("💡 Su despacho es mixto, conoce de diferentes delitos y temáticas.");
+        highlightLabel.setWrapText(true);
+        highlightLabel.setMaxWidth(800);
+        highlightLabel.setStyle(
+            "-fx-background-color: rgba(224,157,16,0.15); " +
+            "-fx-border-color: #e09d10; " +
+            "-fx-border-width: 1.5; " +
+            "-fx-background-radius: 8; " +
+            "-fx-border-radius: 8; " +
+            "-fx-padding: 12 16 12 16; " +
+            "-fx-text-fill: #fcd34d; " +
+            "-fx-font-size: 13.5; " +
+            "-fx-font-weight: bold; " +
+            "-fx-font-family: 'Segoe UI';"
+        );
+        section.getChildren().add(highlightLabel);
+
         section.getChildren().add(infoBox("Acaba de llegar a su oficina. El reloj institucional marca el inicio de su jornada y la acumulación de trabajo ya es evidente."));
 
         GridPane alertGrid = new GridPane();

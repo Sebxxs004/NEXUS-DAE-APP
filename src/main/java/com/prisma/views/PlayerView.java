@@ -41,6 +41,7 @@ import javafx.geometry.Insets;
 import javafx.geometry.Point2D;
 import javafx.geometry.Pos;
 import javafx.scene.Group;
+import javafx.scene.Node;
 import javafx.scene.Scene;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
@@ -106,6 +107,7 @@ public class PlayerView {
     private final Button finishInvestigationButton;
     private final StackPane moduleHost;
     private final VBox boardModule;
+    private final VBox boardWrapper;
     private final VBox casesModule;
     private final StackPane connectionDialogOverlay;
     private final StackPane pdfLoadingOverlay;
@@ -322,7 +324,7 @@ public class PlayerView {
 
         board.getChildren().addAll(boardBackgroundView, contentContainer);
 
-        VBox boardWrapper = new VBox(12);
+        boardWrapper = new VBox(12);
         boardWrapper.setPadding(new Insets(0, 16, 0, 0));
         Label boardTitle = new Label("Casos en movimiento");
         boardTitle.getStyleClass().add("section-title");
@@ -1633,15 +1635,48 @@ public class PlayerView {
     }
 
     private void centerBoardOnNode(CaseNode target) {
+        centerBoardOnPoint(target.centerX(), target.centerY(), true);
+    }
+
+    public void centerBoardOnCluster(GroupCluster cluster) {
+        if (cluster == null || cluster.members.isEmpty()) {
+            return;
+        }
+        showBoardModule();
+        double cx = 0.0;
+        double cy = 0.0;
+        for (CaseNode member : cluster.members) {
+            cx += member.centerX();
+            cy += member.centerY();
+        }
+        cx /= cluster.members.size();
+        cy /= cluster.members.size();
+        centerBoardOnPoint(cx, cy, false);
+    }
+
+    public Node getGroupOverlayNode(GroupCluster cluster) {
+        if (cluster == null) {
+            return null;
+        }
+        GroupOverlay overlay = overlayBySignature.get(cluster.signature);
+        return overlay != null ? overlay.rectangle : null;
+    }
+
+    private void centerBoardOnPoint(double centerX, double centerY, boolean animate) {
         double viewportWidth = board.getWidth() > 0 ? board.getWidth() : board.getPrefWidth();
         double viewportHeight = board.getHeight() > 0 ? board.getHeight() : board.getPrefHeight();
-        double targetX = (viewportWidth / 2.0) - (target.centerX() * boardZoom);
-        double targetY = (viewportHeight / 2.0) - (target.centerY() * boardZoom);
+        double targetX = (viewportWidth / 2.0) - (centerX * boardZoom);
+        double targetY = (viewportHeight / 2.0) - (centerY * boardZoom);
 
-        TranslateTransition transition = new TranslateTransition(javafx.util.Duration.millis(280), contentContainer);
-        transition.setToX(targetX);
-        transition.setToY(targetY);
-        transition.play();
+        if (animate) {
+            TranslateTransition transition = new TranslateTransition(javafx.util.Duration.millis(280), contentContainer);
+            transition.setToX(targetX);
+            transition.setToY(targetY);
+            transition.play();
+        } else {
+            contentContainer.setTranslateX(targetX);
+            contentContainer.setTranslateY(targetY);
+        }
     }
 
     private void renderGroupCards() {
@@ -1683,11 +1718,6 @@ public class PlayerView {
             });
             picker.show();
         });
-
-        TextArea reasonField = new TextArea(meta.reason);
-        reasonField.getStyleClass().add("text-area");
-        reasonField.setPromptText("Escribe aquí tu justificación...");
-        reasonField.setPrefRowCount(3);
 
         Label countLabel = new Label(cluster.members.size() + " casos conectados");
         countLabel.getStyleClass().add("app-subtitle");
@@ -1731,28 +1761,24 @@ public class PlayerView {
                     headerRow,
                     membersIndexLabel,
                     membersNamesLabel,
-                    reasonField,
                     finalizedLabel,
                     decisionInfo,
                     countLabel);
             nameField.setDisable(true);
-            reasonField.setDisable(true);
             colorButton.setDisable(true);
         } else {
             Button finalizeButton = new Button("¿Que va a decidir ahora?");
             finalizeButton.getStyleClass().add("primary-button");
             finalizeButton
-                    .setOnAction(e -> saveGroupCard(cluster.signature, nameField, reasonField, meta, colorButton));
+                    .setOnAction(e -> saveGroupCard(cluster.signature, nameField, meta, colorButton));
             card.getChildren().addAll(
                     headerRow,
                     membersIndexLabel,
                     membersNamesLabel,
-                    reasonField,
                     finalizeButton,
                     countLabel);
             if (investigationFinished) {
                 nameField.setDisable(true);
-                reasonField.setDisable(true);
                 colorButton.setDisable(true);
                 finalizeButton.setDisable(true);
             }
@@ -1777,42 +1803,24 @@ public class PlayerView {
         return trimmed.substring(0, Math.max(0, maxLength - 3)) + "...";
     }
 
-    private void saveGroupCard(String signature, TextField nameField, TextArea reasonField, GroupMeta meta,
+    private void saveGroupCard(String signature, TextField nameField, GroupMeta meta,
             Button colorButton) {
         if (investigationFinished) {
             return;
         }
-        String reason = reasonField.getText().trim();
         String groupName = nameField.getText().trim();
         if (groupName.isBlank()) {
             showAlert(Alert.AlertType.WARNING, "El grupo debe tener nombre.");
             return;
         }
 
-        if (reason.isBlank()) {
-            if (!confirmFinalizeWithoutJustification()) {
-                return;
-            }
-        }
-
         // Store pending state and show decision modal
         pendingDecisionGroupSignature = signature;
         pendingDecisionMeta = meta;
         pendingDecisionGroupName = groupName;
-        pendingDecisionReason = reason;
+        pendingDecisionReason = "";
         pendingDecisionColorButton = colorButton;
         showDecisionOverlay();
-    }
-
-    private boolean confirmFinalizeWithoutJustification() {
-        Alert confirm = new Alert(Alert.AlertType.CONFIRMATION);
-        confirm.setTitle("¿Qué vas a decidir?");
-        confirm.setHeaderText("¿Deseas finalizar el grupo sin justificación?");
-        confirm.setContentText("Si continúa, deberá registrar la decisión que va a tomar.");
-        if (stage != null) {
-            confirm.initOwner(stage);
-        }
-        return confirm.showAndWait().filter(result -> result == ButtonType.OK || result == ButtonType.YES).isPresent();
     }
 
     private void showDecisionOverlay() {
@@ -1851,7 +1859,7 @@ public class PlayerView {
 
             TextArea justificationField = new TextArea();
             justificationField.getStyleClass().add("text-area");
-            justificationField.setPromptText("Escribe la justificación de esta decisión...");
+            justificationField.setPromptText("Escribe la justificación de esta decisión, puede ser un solo párrafo...");
             justificationField.setPrefRowCount(2);
             justificationField.setWrapText(true);
 
@@ -3016,6 +3024,36 @@ public class PlayerView {
         public String toString() {
             return meta.name + " · " + members.size() + " casos";
         }
+
+        public String getName() {
+            return meta.name;
+        }
+
+        public Color getColor() {
+            return meta.color;
+        }
+    }
+
+    public GroupCluster findGroupForCase(Caso caso) {
+        if (caso == null) {
+            return null;
+        }
+        for (CaseNode node : nodes) {
+            if (!node.getCaso().getNombre().equalsIgnoreCase(caso.getNombre())) {
+                continue;
+            }
+            if (!isGroupedNode(node)) {
+                return null;
+            }
+            String signature = groupedNodeSignature.get(node);
+            for (GroupCluster cluster : currentClusters) {
+                if (cluster.signature.equals(signature)) {
+                    return cluster;
+                }
+            }
+            return null;
+        }
+        return null;
     }
 
     public boolean isCaseGrouped(Caso caso) {
@@ -3126,6 +3164,34 @@ public class PlayerView {
 
         refreshConnections();
         refreshGroups();
+        persistInvestigationSnapshot();
+    }
+
+    public void removeConnectionsForCases(List<Caso> casos) {
+        if (casos == null || casos.isEmpty() || investigationFinished) {
+            return;
+        }
+
+        java.util.Set<String> names = casos.stream()
+                .filter(c -> c != null && c.getNombre() != null)
+                .map(c -> c.getNombre().toLowerCase())
+                .collect(java.util.stream.Collectors.toSet());
+        if (names.isEmpty()) {
+            return;
+        }
+
+        boolean removed = connections.removeIf(conn -> {
+            String from = conn.from.getCaso().getNombre().toLowerCase();
+            String to = conn.to.getCaso().getNombre().toLowerCase();
+            return names.contains(from) || names.contains(to);
+        });
+        if (!removed) {
+            return;
+        }
+
+        refreshConnections();
+        refreshGroups();
+        restoreMovementForUngroupedNodes();
         persistInvestigationSnapshot();
     }
 

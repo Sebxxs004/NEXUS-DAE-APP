@@ -14,6 +14,10 @@ import javafx.animation.Timeline;
 import javafx.collections.ListChangeListener;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
+import javafx.geometry.Bounds;
+import javafx.geometry.Point2D;
+import javafx.scene.control.ScrollPane;
+import javafx.scene.control.TextArea;
 import javafx.scene.Node;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
@@ -33,10 +37,14 @@ import javafx.scene.layout.Region;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
+import javafx.scene.paint.CycleMethod;
+import javafx.scene.paint.RadialGradient;
+import javafx.scene.paint.Stop;
 import javafx.scene.shape.Circle;
 import javafx.scene.shape.Line;
 import javafx.scene.shape.Polygon;
 import javafx.scene.shape.Rectangle;
+import javafx.scene.shape.StrokeType;
 import javafx.scene.text.Font;
 import javafx.scene.text.FontWeight;
 import javafx.scene.text.Text;
@@ -71,6 +79,19 @@ public class PlayerViewBrown {
     private final Pane edgeDecorLayer;
     private final Popup nodeTooltip;
 
+    public static boolean onboardingMode = false;
+    private final VBox boardWrapper;
+    private final VBox groupCardsContainer;
+    private final StackPane rootWrapper;
+    private StackPane onboardingOverlay;
+    private Pane onboardingFloatLayer;
+    private VBox onboardingDialog;
+    private Label onboardingMessageLabel;
+    private Rectangle onboardingDimLayer;
+    private Rectangle onboardingSpotlight;
+    private Rectangle onboardingFocusRing;
+    private int onboardingStep = 10;
+
     public PlayerViewBrown(Stage stage) {
         this.stage = stage;
         playerView = new PlayerView(stage);
@@ -82,7 +103,8 @@ public class PlayerViewBrown {
         Pane groupLayer = readField(playerView, "groupLayer", Pane.class);
         VBox sidebar = readField(playerView, "sidebar", VBox.class);
         VBox boardModule = readField(playerView, "boardModule", VBox.class);
-        VBox groupCardsContainer = readField(playerView, "groupCardsContainer", VBox.class);
+        groupCardsContainer = readField(playerView, "groupCardsContainer", VBox.class);
+        boardWrapper = readField(playerView, "boardWrapper", VBox.class);
         @SuppressWarnings("unchecked")
         ListView<String> connectionList = (ListView<String>) readField(playerView, "connectionList", ListView.class);
         Label totalNodesLabel = readField(playerView, "totalNodesLabel", Label.class);
@@ -270,6 +292,12 @@ public class PlayerViewBrown {
         timerTimeline.play();
         refreshTimer();
         refreshSidebarStats(totalNodesLabel, ungroupedNodesLabel);
+
+        rootWrapper = new StackPane(view);
+        if (onboardingMode) {
+            onboardingOverlay = buildOnboardingOverlay();
+            rootWrapper.getChildren().add(onboardingOverlay);
+        }
     }
 
     public void applyTheme(Scene scene) {
@@ -277,7 +305,7 @@ public class PlayerViewBrown {
     }
 
     public Parent getView() {
-        return view;
+        return rootWrapper;
     }
 
     public void focusCase(String query) {
@@ -1317,6 +1345,13 @@ public class PlayerViewBrown {
         return playerView.isCaseGrouped(caso);
     }
 
+    public PlayerView.GroupCluster findGroupForCase(com.prisma.models.Caso caso) {
+        if (playerView == null) {
+            return null;
+        }
+        return playerView.findGroupForCase(caso);
+    }
+
     public List<PlayerView.GroupCluster> getCurrentClusters() {
         if (playerView == null) {
             return List.of();
@@ -1336,5 +1371,510 @@ public class PlayerViewBrown {
             return;
         }
         playerView.createBatchConnections(casos, basis, detail, reason);
+    }
+
+    public void removeConnectionsForCases(List<com.prisma.models.Caso> casos) {
+        if (playerView == null) {
+            return;
+        }
+        playerView.removeConnectionsForCases(casos);
+    }
+
+    private StackPane buildOnboardingOverlay() {
+        onboardingDimLayer = new Rectangle();
+        onboardingDimLayer.setVisible(false);
+        onboardingDimLayer.setMouseTransparent(true);
+
+        onboardingSpotlight = new Rectangle();
+        onboardingSpotlight.setVisible(false);
+        onboardingSpotlight.setMouseTransparent(true);
+
+        onboardingFocusRing = new Rectangle();
+        onboardingFocusRing.setFill(Color.TRANSPARENT);
+        onboardingFocusRing.setStroke(Color.web("#fcd34d"));
+        onboardingFocusRing.setStrokeWidth(2.5);
+        onboardingFocusRing.setStrokeType(StrokeType.INSIDE);
+        onboardingFocusRing.setArcWidth(12);
+        onboardingFocusRing.setArcHeight(12);
+        onboardingFocusRing.setVisible(false);
+        onboardingFocusRing.setMouseTransparent(true);
+
+        onboardingMessageLabel = new Label();
+        onboardingMessageLabel.setWrapText(true);
+        onboardingMessageLabel.setMaxWidth(380);
+        onboardingMessageLabel.setAlignment(Pos.CENTER);
+        onboardingMessageLabel.setStyle(
+            "-fx-text-fill: #e8f0ff; " +
+            "-fx-font-size: 14; " +
+            "-fx-font-family: " + FONT + ";"
+        );
+
+        Label onboardingTitle = new Label("Guía del Despacho");
+        onboardingTitle.setStyle(
+            "-fx-text-fill: #f0c96e; " +
+            "-fx-font-weight: bold; " +
+            "-fx-font-size: 16; " +
+            "-fx-font-family: " + FONT + ";"
+        );
+
+        Button nextButton = new Button("Siguiente");
+        nextButton.setStyle(
+            "-fx-background-color: #2563c8; " +
+            "-fx-text-fill: white; " +
+            "-fx-font-weight: bold; " +
+            "-fx-border-radius: 6; " +
+            "-fx-background-radius: 6; " +
+            "-fx-padding: 8 22 8 22; " +
+            "-fx-cursor: hand; " +
+            "-fx-font-family: " + FONT + ";"
+        );
+        nextButton.setOnAction(e -> advanceOnboarding());
+
+        HBox actions = new HBox(nextButton);
+        actions.setAlignment(Pos.CENTER_RIGHT);
+
+        onboardingDialog = new VBox(12, onboardingTitle, onboardingMessageLabel, actions);
+        onboardingDialog.setPrefWidth(400);
+        onboardingDialog.setMaxWidth(400);
+        onboardingDialog.setMaxHeight(Region.USE_PREF_SIZE);
+        onboardingDialog.setPadding(new Insets(20));
+        onboardingDialog.setStyle(
+            "-fx-background-color: #0b1a3a; " +
+            "-fx-border-color: #3b7de0; " +
+            "-fx-border-width: 2; " +
+            "-fx-border-radius: 12; " +
+            "-fx-background-radius: 12; " +
+            "-fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.55), 18, 0.3, 0, 8);"
+        );
+        onboardingDialog.setPickOnBounds(true);
+
+        Pane clickBlocker = new Pane();
+        clickBlocker.setStyle("-fx-background-color: transparent;");
+        clickBlocker.setPickOnBounds(true);
+        clickBlocker.setOnMouseClicked(ev -> ev.consume());
+
+        onboardingFloatLayer = new Pane();
+        onboardingFloatLayer.setPickOnBounds(false);
+        onboardingFloatLayer.getChildren().addAll(onboardingFocusRing, onboardingDialog);
+
+        StackPane overlay = new StackPane(onboardingDimLayer, onboardingSpotlight, clickBlocker, onboardingFloatLayer);
+        overlay.setPickOnBounds(false);
+        StackPane.setAlignment(onboardingFloatLayer, Pos.TOP_LEFT);
+
+        onboardingDimLayer.widthProperty().bind(overlay.widthProperty());
+        onboardingDimLayer.heightProperty().bind(overlay.heightProperty());
+        onboardingSpotlight.widthProperty().bind(overlay.widthProperty());
+        onboardingSpotlight.heightProperty().bind(overlay.heightProperty());
+        clickBlocker.prefWidthProperty().bind(overlay.widthProperty());
+        clickBlocker.prefHeightProperty().bind(overlay.heightProperty());
+        clickBlocker.minWidthProperty().bind(overlay.widthProperty());
+        clickBlocker.minHeightProperty().bind(overlay.heightProperty());
+        clickBlocker.maxWidthProperty().bind(overlay.widthProperty());
+        clickBlocker.maxHeightProperty().bind(overlay.heightProperty());
+        onboardingFloatLayer.prefWidthProperty().bind(overlay.widthProperty());
+        onboardingFloatLayer.prefHeightProperty().bind(overlay.heightProperty());
+        onboardingFloatLayer.minWidthProperty().bind(overlay.widthProperty());
+        onboardingFloatLayer.minHeightProperty().bind(overlay.heightProperty());
+        onboardingFloatLayer.maxWidthProperty().bind(overlay.widthProperty());
+        onboardingFloatLayer.maxHeightProperty().bind(overlay.heightProperty());
+
+        FadeTransition spotlightPulse = new FadeTransition(Duration.seconds(2.2), onboardingSpotlight);
+        spotlightPulse.setFromValue(0.90);
+        spotlightPulse.setToValue(1.0);
+        spotlightPulse.setAutoReverse(true);
+        spotlightPulse.setCycleCount(Animation.INDEFINITE);
+        spotlightPulse.play();
+
+        FadeTransition ringPulse = new FadeTransition(Duration.seconds(1.1), onboardingFocusRing);
+        ringPulse.setFromValue(0.55);
+        ringPulse.setToValue(1.0);
+        ringPulse.setAutoReverse(true);
+        ringPulse.setCycleCount(Animation.INDEFINITE);
+        ringPulse.play();
+
+        return overlay;
+    }
+
+    private void ensureOnboardingOverlayOnTop() {
+        if (onboardingOverlay != null && onboardingOverlay.isVisible()) {
+            onboardingOverlay.toFront();
+        }
+    }
+
+    public void startOnboardingFlowExternal() {
+        if (onboardingOverlay != null) {
+            onboardingOverlay.setVisible(true);
+            onboardingOverlay.setManaged(true);
+        }
+        javafx.animation.PauseTransition delay = new javafx.animation.PauseTransition(javafx.util.Duration.millis(500));
+        delay.setOnFinished(ev -> {
+            rootWrapper.applyCss();
+            rootWrapper.layout();
+            showOnboardingStep(10);
+        });
+        delay.play();
+    }
+
+    private void startOnboardingFlow() {
+        showOnboardingStep(10);
+    }
+
+    private void advanceOnboarding() {
+        showOnboardingStep(onboardingStep + 1);
+    }
+
+    private void showOnboardingStep(int step) {
+        onboardingStep = step;
+        ensureOnboardingOverlayOnTop();
+        if (step != 10) {
+            onboardingFocusRing.setArcWidth(12);
+            onboardingFocusRing.setArcHeight(12);
+        }
+
+        switch (step) {
+            case 10 -> showOnboardingGraphStep();
+            case 11 -> showOnboardingGroupNameStep();
+            case 12 -> showOnboardingFinalizeButtonStep();
+            case 13 -> showOnboardingDecisionModalStep();
+            case 14 -> showOnboardingFinishStep();
+            default -> finishOnboarding();
+        }
+    }
+
+    private void showOnboardingGraphStep() {
+        onboardingMessageLabel.setText("Esta es la representación gráfica del grupo creado");
+        List<PlayerView.GroupCluster> clusters = getCurrentClusters();
+        PlayerView.GroupCluster targetCluster = clusters.isEmpty() ? null : clusters.get(0);
+        if (targetCluster != null) {
+            playerView.centerBoardOnCluster(targetCluster);
+        }
+
+        javafx.application.Platform.runLater(() -> javafx.application.Platform.runLater(() -> {
+            rootWrapper.applyCss();
+            rootWrapper.layout();
+            playerView.getView().applyCss();
+            playerView.getView().layout();
+
+            Node groupFrame = targetCluster != null ? playerView.getGroupOverlayNode(targetCluster) : null;
+            if (groupFrame != null) {
+                onboardingFocusRing.setArcWidth(26);
+                onboardingFocusRing.setArcHeight(26);
+                positionSpotlightOn(groupFrame, 0.28);
+                positionFocusRingOn(groupFrame);
+            } else if (targetCluster != null && !targetCluster.members.isEmpty()) {
+                onboardingFocusRing.setArcWidth(26);
+                onboardingFocusRing.setArcHeight(26);
+                Node[] members = targetCluster.members.toArray(new Node[0]);
+                positionSpotlightOnNodes(0.28, members);
+                positionFocusRingOnNodes(members);
+            } else {
+                onboardingFocusRing.setArcWidth(12);
+                onboardingFocusRing.setArcHeight(12);
+                positionSpotlightOn(boardWrapper, 0.42);
+                positionFocusRingOn(boardWrapper);
+            }
+            positionOnboardingDialogBottom();
+        }));
+    }
+
+    private void showOnboardingGroupNameStep() {
+        onboardingMessageLabel.setText("Aquí podrá cambiar el nombre al grupo");
+        javafx.application.Platform.runLater(() -> {
+            Node nameField = findTextField(groupCardsContainer);
+            if (nameField == null) {
+                nameField = groupCardsContainer;
+            }
+            rootWrapper.applyCss();
+            rootWrapper.layout();
+            positionSpotlightOn(nameField, nameField == groupCardsContainer ? 0.22 : 0.08);
+            positionFocusRingOn(nameField);
+            positionOnboardingDialogBottom();
+        });
+    }
+
+    private void showOnboardingFinalizeButtonStep() {
+        onboardingMessageLabel.setText("Una vez haya concluído el grupo y no quiera agregar más casos a dicho grupo deberá decidir");
+        javafx.application.Platform.runLater(() -> {
+            Node finalizeBtn = findButtonByStyleClass(groupCardsContainer, "primary-button");
+            if (finalizeBtn == null) {
+                finalizeBtn = groupCardsContainer;
+            }
+            rootWrapper.applyCss();
+            rootWrapper.layout();
+            positionSpotlightOn(finalizeBtn, finalizeBtn == groupCardsContainer ? 0.22 : 0.08);
+            positionFocusRingOn(finalizeBtn);
+            positionOnboardingDialogBottom();
+        });
+    }
+
+    private void showOnboardingDecisionModalStep() {
+        // Automatically trigger the finalize button click to open decision modal
+        javafx.application.Platform.runLater(() -> {
+            Button finalizeBtn = findButtonByStyleClass(groupCardsContainer, "primary-button");
+            if (finalizeBtn != null) {
+                finalizeBtn.fire();
+            }
+            onboardingMessageLabel.setText("Aquí tomará decisiones que se harán posteriores a la identificación del grupo");
+            
+            StackPane decisionOverlay = readField(playerView, "decisionOverlay", StackPane.class);
+            Node decisionCard = decisionOverlay;
+            if (decisionOverlay != null && !decisionOverlay.getChildren().isEmpty()) {
+                decisionCard = decisionOverlay.getChildren().get(0);
+            }
+            
+            rootWrapper.applyCss();
+            rootWrapper.layout();
+            positionSpotlightOn(decisionCard, 0.36);
+            positionFocusRingOn(decisionCard);
+            positionOnboardingDialogBottom();
+            ensureOnboardingOverlayOnTop();
+        });
+    }
+
+    private void showOnboardingFinishStep() {
+        javafx.application.Platform.runLater(() -> {
+            // Dismiss decision overlay first
+            StackPane decisionOverlay = readField(playerView, "decisionOverlay", StackPane.class);
+            if (decisionOverlay != null) {
+                decisionOverlay.setVisible(false);
+                decisionOverlay.setManaged(false);
+            }
+
+            Button finishButton = readField(playerView, "finishInvestigationButton", Button.class);
+            onboardingMessageLabel.setText("Una vez terminada la investigación deberá darle terminar y el juego le generará un PDF de lo que ha desarrollado dentro de Nexus");
+            
+            rootWrapper.applyCss();
+            rootWrapper.layout();
+            positionSpotlightOn(finishButton, 0.08);
+            positionFocusRingOn(finishButton);
+            positionOnboardingDialogBottom();
+            ensureOnboardingOverlayOnTop();
+        });
+    }
+
+    private void finishOnboarding() {
+        onboardingMode = false;
+        onboardingOverlay.setVisible(false);
+        onboardingOverlay.setManaged(false);
+
+        // Cleanup demo group connections
+        List<com.prisma.models.Caso> demoCases = com.prisma.data.CasoRepository.getCasos().stream()
+                .sorted(java.util.Comparator.comparing(com.prisma.models.Caso::getNombre, String.CASE_INSENSITIVE_ORDER))
+                .limit(2)
+                .toList();
+        removeConnectionsForCases(demoCases);
+
+        // Write marker flag
+        try {
+            java.nio.file.Path marker = java.nio.file.Path.of(
+                    System.getProperty("user.home"), "Documents", "NEXUS", "cases-management-onboarding-seen.flag");
+            java.nio.file.Files.createDirectories(marker.getParent());
+            java.nio.file.Files.writeString(marker, "seen");
+        } catch (Exception ignored) {
+        }
+
+        // Return to Procesos del Despacho
+        CasesManagementBrownView casesView = new CasesManagementBrownView(stage);
+        Scene scene = new Scene(casesView.getView(), 1500, 900);
+        casesView.applyTheme(scene);
+        stage.setScene(scene);
+        stage.setMaximized(true);
+        stage.setFullScreen(true);
+    }
+
+    private TextField findTextField(Parent root) {
+        if (root instanceof TextField tf) {
+            return tf;
+        }
+        for (Node child : root.getChildrenUnmodifiable()) {
+            if (child instanceof Parent parent) {
+                TextField tf = findTextField(parent);
+                if (tf != null) {
+                    return tf;
+                }
+            }
+        }
+        return null;
+    }
+
+    private Button findButtonByStyleClass(Parent root, String styleClass) {
+        if (root instanceof Button btn && btn.getStyleClass().contains(styleClass)) {
+            return btn;
+        }
+        for (Node child : root.getChildrenUnmodifiable()) {
+            if (child instanceof Parent parent) {
+                Button btn = findButtonByStyleClass(parent, styleClass);
+                if (btn != null) {
+                    return btn;
+                }
+            }
+        }
+        return null;
+    }
+
+    private void positionSpotlightOn(Node target, double minRadius) {
+        if (target == null) {
+            onboardingSpotlight.setVisible(false);
+            onboardingDimLayer.setVisible(true);
+            onboardingDimLayer.setFill(Color.color(0, 0, 0, 0.82));
+            return;
+        }
+        positionSpotlightOnBounds(getVisualSceneBounds(target), minRadius);
+    }
+
+    private void positionSpotlightOnNodes(double minRadius, Node... targets) {
+        Bounds bounds = unionVisualSceneBounds(targets);
+        if (bounds == null) {
+            onboardingSpotlight.setVisible(false);
+            onboardingDimLayer.setVisible(true);
+            onboardingDimLayer.setFill(Color.color(0, 0, 0, 0.82));
+            return;
+        }
+        positionSpotlightOnBounds(bounds, minRadius);
+    }
+
+    private void positionSpotlightOnBounds(Bounds targetBounds, double minRadius) {
+        if (targetBounds == null || onboardingOverlay.getWidth() <= 0 || onboardingOverlay.getHeight() <= 0) {
+            onboardingSpotlight.setVisible(false);
+            onboardingDimLayer.setVisible(true);
+            onboardingDimLayer.setFill(Color.color(0, 0, 0, 0.82));
+            return;
+        }
+
+        Bounds overlayBounds = onboardingOverlay.localToScene(onboardingOverlay.getBoundsInLocal());
+        double overlayW = overlayBounds.getWidth();
+        double overlayH = overlayBounds.getHeight();
+        if (overlayW <= 0 || overlayH <= 0) {
+            return;
+        }
+
+        double centerX = ((targetBounds.getMinX() + targetBounds.getMaxX()) / 2.0 - overlayBounds.getMinX()) / overlayW;
+        double centerY = ((targetBounds.getMinY() + targetBounds.getMaxY()) / 2.0 - overlayBounds.getMinY()) / overlayH;
+        double targetSize = Math.max(targetBounds.getWidth(), targetBounds.getHeight());
+        double radius = Math.max(minRadius, Math.min(0.40, (targetSize * 3.4) / Math.min(overlayW, overlayH)));
+
+        onboardingDimLayer.setVisible(false);
+        onboardingSpotlight.setVisible(true);
+        onboardingSpotlight.setFill(new RadialGradient(
+                0, 0, centerX, centerY, radius, true, CycleMethod.NO_CYCLE,
+                new Stop(0.00, Color.TRANSPARENT),
+                new Stop(0.38, Color.TRANSPARENT),
+                new Stop(0.62, Color.color(3.0 / 255.0, 7.0 / 255.0, 18.0 / 255.0, 0.45)),
+                new Stop(0.85, Color.color(3.0 / 255.0, 7.0 / 255.0, 18.0 / 255.0, 0.90)),
+                new Stop(1.00, Color.color(3.0 / 255.0, 7.0 / 255.0, 18.0 / 255.0, 0.96))
+        ));
+    }
+
+    private void positionFocusRingOn(Node target) {
+        if (target == null) {
+            onboardingFocusRing.setVisible(false);
+            return;
+        }
+        positionFocusRingOnBounds(getVisualSceneBounds(target));
+    }
+
+    private void positionFocusRingOnNodes(Node... targets) {
+        Bounds bounds = unionVisualSceneBounds(targets);
+        if (bounds == null) {
+            onboardingFocusRing.setVisible(false);
+            return;
+        }
+        positionFocusRingOnBounds(bounds);
+    }
+
+    private void positionFocusRingOnBounds(Bounds sceneBounds) {
+        if (sceneBounds == null || onboardingFloatLayer == null) {
+            onboardingFocusRing.setVisible(false);
+            return;
+        }
+
+        Point2D topLeft = onboardingFloatLayer.sceneToLocal(sceneBounds.getMinX(), sceneBounds.getMinY());
+        Point2D bottomRight = onboardingFloatLayer.sceneToLocal(sceneBounds.getMaxX(), sceneBounds.getMaxY());
+
+        double minX = Math.min(topLeft.getX(), bottomRight.getX());
+        double minY = Math.min(topLeft.getY(), bottomRight.getY());
+        double maxX = Math.max(topLeft.getX(), bottomRight.getX());
+        double maxY = Math.max(topLeft.getY(), bottomRight.getY());
+
+        onboardingFocusRing.setLayoutX(minX);
+        onboardingFocusRing.setLayoutY(minY);
+        onboardingFocusRing.setWidth(Math.max(1, maxX - minX));
+        onboardingFocusRing.setHeight(Math.max(1, maxY - minY));
+        onboardingFocusRing.setVisible(true);
+    }
+
+    private Bounds getVisualSceneBounds(Node node) {
+        if (node == null || !node.isVisible()) {
+            return null;
+        }
+
+        Bounds local = node.getLayoutBounds();
+        if (local.getWidth() <= 0 || local.getHeight() <= 0) {
+            local = node.getBoundsInLocal();
+        }
+
+        if (node instanceof javafx.scene.shape.Shape shape
+                && shape.getStroke() != null
+                && shape.getStrokeWidth() > 0
+                && shape.getStrokeType() != StrokeType.INSIDE) {
+            double stroke = shape.getStrokeWidth();
+            local = new javafx.geometry.BoundingBox(
+                    local.getMinX() - stroke / 2.0,
+                    local.getMinY() - stroke / 2.0,
+                    local.getWidth() + stroke,
+                    local.getHeight() + stroke);
+        }
+
+        Point2D topLeft = node.localToScene(local.getMinX(), local.getMinY());
+        Point2D topRight = node.localToScene(local.getMaxX(), local.getMinY());
+        Point2D bottomLeft = node.localToScene(local.getMinX(), local.getMaxY());
+        Point2D bottomRight = node.localToScene(local.getMaxX(), local.getMaxY());
+
+        double minX = Math.min(Math.min(topLeft.getX(), topRight.getX()), Math.min(bottomLeft.getX(), bottomRight.getX()));
+        double minY = Math.min(Math.min(topLeft.getY(), topRight.getY()), Math.min(bottomLeft.getY(), bottomRight.getY()));
+        double maxX = Math.max(Math.max(topLeft.getX(), topRight.getX()), Math.max(bottomLeft.getX(), bottomRight.getX()));
+        double maxY = Math.max(Math.max(topLeft.getY(), topRight.getY()), Math.max(bottomLeft.getY(), bottomRight.getY()));
+        return new javafx.geometry.BoundingBox(minX, minY, maxX - minX, maxY - minY);
+    }
+
+    private Bounds unionVisualSceneBounds(Node... nodes) {
+        if (nodes == null || nodes.length == 0) {
+            return null;
+        }
+        double minX = Double.MAX_VALUE;
+        double minY = Double.MAX_VALUE;
+        double maxX = Double.MIN_VALUE;
+        double maxY = Double.MIN_VALUE;
+        boolean found = false;
+        for (Node node : nodes) {
+            Bounds bounds = getVisualSceneBounds(node);
+            if (bounds == null) {
+                continue;
+            }
+            minX = Math.min(minX, bounds.getMinX());
+            minY = Math.min(minY, bounds.getMinY());
+            maxX = Math.max(maxX, bounds.getMaxX());
+            maxY = Math.max(maxY, bounds.getMaxY());
+            found = true;
+        }
+        if (!found) {
+            return null;
+        }
+        return new javafx.geometry.BoundingBox(minX, minY, maxX - minX, maxY - minY);
+    }
+
+    private void positionOnboardingDialogBottom() {
+        onboardingDialog.applyCss();
+        onboardingDialog.layout();
+        double layerW = onboardingFloatLayer.getWidth();
+        double layerH = onboardingFloatLayer.getHeight();
+        if (layerW <= 0 || layerH <= 0) {
+            return;
+        }
+        double dialogW = onboardingDialog.getWidth();
+        double dialogH = onboardingDialog.getHeight();
+        double bottomMargin = 140;
+        onboardingDialog.setLayoutX(Math.max(24, (layerW - dialogW) / 2.0));
+        onboardingDialog.setLayoutY(Math.max(24, layerH - dialogH - bottomMargin));
     }
 }

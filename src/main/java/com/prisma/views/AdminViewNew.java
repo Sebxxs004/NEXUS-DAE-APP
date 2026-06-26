@@ -8,9 +8,13 @@ import javafx.animation.FadeTransition;
 import javafx.animation.KeyFrame;
 import javafx.animation.ScaleTransition;
 import javafx.animation.Timeline;
+import javafx.geometry.Bounds;
 import javafx.geometry.Insets;
+import javafx.geometry.Point2D;
 import javafx.geometry.Pos;
+import javafx.scene.Node;
 import javafx.scene.Scene;
+import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.effect.ColorAdjust;
 import javafx.scene.effect.DropShadow;
@@ -18,6 +22,7 @@ import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.HBox;
+import javafx.scene.layout.Pane;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.StackPane;
@@ -29,6 +34,7 @@ import javafx.scene.paint.RadialGradient;
 import javafx.scene.paint.Stop;
 import javafx.scene.shape.Circle;
 import javafx.scene.shape.Rectangle;
+import javafx.scene.shape.StrokeType;
 import javafx.stage.Stage;
 import javafx.util.Duration;
 
@@ -43,6 +49,16 @@ public class AdminViewNew {
     private final Label timerLabel;
     private final HBox timerBadge;
     private final Timeline timerTimeline;
+
+    public static boolean onboardingMode = false;
+    private StackPane onboardingOverlay;
+    private Pane onboardingFloatLayer;
+    private VBox onboardingDialog;
+    private Label onboardingMessageLabel;
+    private Rectangle onboardingDimLayer;
+    private Rectangle onboardingSpotlight;
+    private Rectangle onboardingFocusRing;
+    private HBox rightButton;
 
     public AdminViewNew(Stage stage) {
         this.stage = stage;
@@ -143,10 +159,45 @@ public class AdminViewNew {
             shell
         );
 
+        boolean isFirstTime = !java.nio.file.Files.exists(
+            java.nio.file.Path.of(System.getProperty("user.home"), "Documents", "NEXUS", "active-session-snapshot.json")
+        );
+
+        if (isFirstTime) {
+            // Cinema spotlight effect pointing to the bottom-left action button
+            Rectangle spotlight = new Rectangle();
+            spotlight.widthProperty().bind(view.widthProperty());
+            spotlight.heightProperty().bind(view.heightProperty());
+            spotlight.setMouseTransparent(true); // Allow clicks to pass through to the button
+            spotlight.setFill(new RadialGradient(
+                0, 0, 0.16, 0.88, 0.28, true, CycleMethod.NO_CYCLE,
+                new Stop(0.00, Color.TRANSPARENT),
+                new Stop(0.42, Color.color(3.0 / 255.0, 7.0 / 255.0, 18.0 / 255.0, 0.38)),
+                new Stop(0.80, Color.color(3.0 / 255.0, 7.0 / 255.0, 18.0 / 255.0, 0.88)),
+                new Stop(1.00, Color.color(3.0 / 255.0, 7.0 / 255.0, 18.0 / 255.0, 0.94))
+            ));
+            
+            // Subtle breathing animation for the spotlight to feel alive
+            FadeTransition spotlightPulse = new FadeTransition(Duration.seconds(2.5), spotlight);
+            spotlightPulse.setFromValue(0.92);
+            spotlightPulse.setToValue(1.0);
+            spotlightPulse.setAutoReverse(true);
+            spotlightPulse.setCycleCount(Animation.INDEFINITE);
+            spotlightPulse.play();
+            
+            view.getChildren().add(spotlight);
+        }
+
         timerTimeline = new Timeline(new KeyFrame(Duration.seconds(1), e -> refreshTimer()));
         timerTimeline.setCycleCount(Animation.INDEFINITE);
         timerTimeline.play();
         refreshTimer();
+
+        if (onboardingMode) {
+            onboardingOverlay = buildOnboardingOverlay();
+            view.getChildren().add(onboardingOverlay);
+            javafx.application.Platform.runLater(this::startOnboardingFlow);
+        }
     }
 
     public StackPane getView() {
@@ -178,6 +229,7 @@ public class AdminViewNew {
     }
 
     private void openAnalyticsBoard() {
+        PlayerViewBrown.clearActiveInstance();
         PlayerViewBrown playerView = PlayerViewBrown.getInstance(stage);
         javafx.scene.Parent view = playerView.getView();
         if (view.getScene() != null) {
@@ -188,6 +240,9 @@ public class AdminViewNew {
         stage.setScene(scene);
         stage.setMaximized(true);
         stage.setFullScreen(true);
+        if (PlayerViewBrown.onboardingMode) {
+            playerView.startOnboardingFlowExternal();
+        }
     }
 
     private HBox buildTopBar() {
@@ -308,6 +363,10 @@ public class AdminViewNew {
     }
 
     private HBox buildActionBar() {
+        boolean isFirstTime = !java.nio.file.Files.exists(
+            java.nio.file.Path.of(System.getProperty("user.home"), "Documents", "NEXUS", "active-session-snapshot.json")
+        );
+
         HBox leftButton = makeActionBtn(
             FontAwesomeSolid.FOLDER_OPEN,
             "Procesos del despacho",
@@ -316,7 +375,54 @@ public class AdminViewNew {
             this::openCaseManagement
         );
 
-        HBox rightButton = makeActionBtn(
+        javafx.scene.Node leftButtonContainer = leftButton;
+
+        if (isFirstTime) {
+            // Apply a highlighted focus border, glow and warning colors
+            leftButton.setStyle(
+                "-fx-background-color: #f59e0b; " +
+                "-fx-background-radius: 11; " +
+                "-fx-border-color: #ffffff; " +
+                "-fx-border-width: 2.5; " +
+                "-fx-border-radius: 11; " +
+                "-fx-effect: dropshadow(three-pass-box, rgba(245,158,11,0.8), 20, 0.6, 0, 0); " +
+                "-fx-cursor: hand;"
+            );
+
+            // Create a floating, blinking label OUTSIDE and ABOVE the button
+            Label startHint = new Label("👇 ¡Empiece por aquí! 👇");
+            startHint.setStyle(
+                "-fx-text-fill: #fcd34d; " +
+                "-fx-font-weight: bold; " +
+                "-fx-font-size: 13; " +
+                "-fx-font-family: " + FONT + "; " +
+                "-fx-background-color: rgba(245,158,11,0.15); " +
+                "-fx-border-color: #f59e0b; " +
+                "-fx-border-width: 1; " +
+                "-fx-border-radius: 6; " +
+                "-fx-background-radius: 6; " +
+                "-fx-padding: 4 8 4 8;"
+            );
+
+            // Soft floating animation for the hint
+            ScaleTransition hintPulse = new ScaleTransition(Duration.seconds(0.8), startHint);
+            hintPulse.setFromX(1.0);
+            hintPulse.setFromY(1.0);
+            hintPulse.setToX(1.06);
+            hintPulse.setToY(1.06);
+            hintPulse.setAutoReverse(true);
+            hintPulse.setCycleCount(Animation.INDEFINITE);
+            hintPulse.play();
+
+            VBox wrappedLeft = new VBox(8, startHint, leftButton);
+            wrappedLeft.setAlignment(Pos.BOTTOM_CENTER);
+            
+            // Offset the margin to ensure the floating label doesn't push the button out of alignment
+            VBox.setMargin(startHint, new Insets(0, 0, 2, 0));
+            leftButtonContainer = wrappedLeft;
+        }
+
+        rightButton = makeActionBtn(
             FontAwesomeSolid.CHART_BAR,
             "Toma de decisiones",
             "Patrones y conexiones",
@@ -324,10 +430,23 @@ public class AdminViewNew {
             this::openAnalyticsBoard
         );
 
+        if (isFirstTime) {
+            rightButton.setDisable(true);
+            rightButton.setOpacity(0.5);
+            rightButton.setStyle(
+                "-fx-background-color: #4b5563; " +
+                "-fx-background-radius: 11; " +
+                "-fx-cursor: not-allowed;"
+            );
+            rightButton.setOnMouseClicked(null);
+            rightButton.setOnMouseEntered(null);
+            rightButton.setOnMouseExited(null);
+        }
+
         Region spacer = new Region();
         HBox.setHgrow(spacer, Priority.ALWAYS);
 
-        HBox actionBar = new HBox(leftButton, spacer, rightButton);
+        HBox actionBar = new HBox(leftButtonContainer, spacer, rightButton);
         actionBar.setAlignment(Pos.BOTTOM_CENTER);
         actionBar.setPadding(new Insets(0, 40, 32, 40));
         actionBar.setStyle("-fx-background-color: transparent;");
@@ -465,5 +584,269 @@ public class AdminViewNew {
         }
         int count = InvestigationTeamContext.getMembersDisplay().split(",").length;
         return "1 judicante";
+    }
+
+    private StackPane buildOnboardingOverlay() {
+        onboardingDimLayer = new Rectangle();
+        onboardingDimLayer.setVisible(false);
+        onboardingDimLayer.setMouseTransparent(true);
+
+        onboardingSpotlight = new Rectangle();
+        onboardingSpotlight.setVisible(false);
+        onboardingSpotlight.setMouseTransparent(true);
+
+        onboardingFocusRing = new Rectangle();
+        onboardingFocusRing.setFill(Color.TRANSPARENT);
+        onboardingFocusRing.setStroke(Color.web("#fcd34d"));
+        onboardingFocusRing.setStrokeWidth(2.5);
+        onboardingFocusRing.setStrokeType(StrokeType.INSIDE);
+        onboardingFocusRing.setArcWidth(12);
+        onboardingFocusRing.setArcHeight(12);
+        onboardingFocusRing.setVisible(false);
+        onboardingFocusRing.setMouseTransparent(true);
+
+        onboardingMessageLabel = new Label();
+        onboardingMessageLabel.setWrapText(true);
+        onboardingMessageLabel.setMaxWidth(380);
+        onboardingMessageLabel.setAlignment(Pos.CENTER);
+        onboardingMessageLabel.setStyle(
+            "-fx-text-fill: #e8f0ff; " +
+            "-fx-font-size: 14; " +
+            "-fx-font-family: " + FONT + ";"
+        );
+
+        Label onboardingTitle = new Label("Guía del Despacho");
+        onboardingTitle.setStyle(
+            "-fx-text-fill: #f0c96e; " +
+            "-fx-font-weight: bold; " +
+            "-fx-font-size: 16; " +
+            "-fx-font-family: " + FONT + ";"
+        );
+
+        Button nextButton = new Button("Siguiente");
+        nextButton.setStyle(
+            "-fx-background-color: #2563c8; " +
+            "-fx-text-fill: white; " +
+            "-fx-font-weight: bold; " +
+            "-fx-border-radius: 6; " +
+            "-fx-background-radius: 6; " +
+            "-fx-padding: 8 22 8 22; " +
+            "-fx-cursor: hand; " +
+            "-fx-font-family: " + FONT + ";"
+        );
+        nextButton.setOnAction(e -> {
+            onboardingMode = false;
+            PlayerViewBrown.onboardingMode = true;
+            openAnalyticsBoard();
+        });
+
+        HBox actions = new HBox(nextButton);
+        actions.setAlignment(Pos.CENTER_RIGHT);
+
+        onboardingDialog = new VBox(12, onboardingTitle, onboardingMessageLabel, actions);
+        onboardingDialog.setPrefWidth(400);
+        onboardingDialog.setMaxWidth(400);
+        onboardingDialog.setMaxHeight(Region.USE_PREF_SIZE);
+        onboardingDialog.setPadding(new Insets(20));
+        onboardingDialog.setStyle(
+            "-fx-background-color: #0b1a3a; " +
+            "-fx-border-color: #3b7de0; " +
+            "-fx-border-width: 2; " +
+            "-fx-border-radius: 12; " +
+            "-fx-background-radius: 12; " +
+            "-fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.55), 18, 0.3, 0, 8);"
+        );
+        onboardingDialog.setPickOnBounds(true);
+
+        Pane clickBlocker = new Pane();
+        clickBlocker.setStyle("-fx-background-color: transparent;");
+        clickBlocker.setPickOnBounds(true);
+        clickBlocker.setOnMouseClicked(ev -> ev.consume());
+
+        onboardingFloatLayer = new Pane();
+        onboardingFloatLayer.setPickOnBounds(false);
+        onboardingFloatLayer.getChildren().addAll(onboardingFocusRing, onboardingDialog);
+
+        StackPane overlay = new StackPane(onboardingDimLayer, onboardingSpotlight, clickBlocker, onboardingFloatLayer);
+        overlay.setPickOnBounds(false);
+        StackPane.setAlignment(onboardingFloatLayer, Pos.TOP_LEFT);
+
+        onboardingDimLayer.widthProperty().bind(overlay.widthProperty());
+        onboardingDimLayer.heightProperty().bind(overlay.heightProperty());
+        onboardingSpotlight.widthProperty().bind(overlay.widthProperty());
+        onboardingSpotlight.heightProperty().bind(overlay.heightProperty());
+        clickBlocker.prefWidthProperty().bind(overlay.widthProperty());
+        clickBlocker.prefHeightProperty().bind(overlay.heightProperty());
+        clickBlocker.minWidthProperty().bind(overlay.widthProperty());
+        clickBlocker.minHeightProperty().bind(overlay.heightProperty());
+        clickBlocker.maxWidthProperty().bind(overlay.widthProperty());
+        clickBlocker.maxHeightProperty().bind(overlay.heightProperty());
+        onboardingFloatLayer.prefWidthProperty().bind(overlay.widthProperty());
+        onboardingFloatLayer.prefHeightProperty().bind(overlay.heightProperty());
+        onboardingFloatLayer.minWidthProperty().bind(overlay.widthProperty());
+        onboardingFloatLayer.minHeightProperty().bind(overlay.heightProperty());
+        onboardingFloatLayer.maxWidthProperty().bind(overlay.widthProperty());
+        onboardingFloatLayer.maxHeightProperty().bind(overlay.heightProperty());
+
+        FadeTransition spotlightPulse = new FadeTransition(Duration.seconds(2.2), onboardingSpotlight);
+        spotlightPulse.setFromValue(0.90);
+        spotlightPulse.setToValue(1.0);
+        spotlightPulse.setAutoReverse(true);
+        spotlightPulse.setCycleCount(Animation.INDEFINITE);
+        spotlightPulse.play();
+
+        FadeTransition ringPulse = new FadeTransition(Duration.seconds(1.1), onboardingFocusRing);
+        ringPulse.setFromValue(0.55);
+        ringPulse.setToValue(1.0);
+        ringPulse.setAutoReverse(true);
+        ringPulse.setCycleCount(Animation.INDEFINITE);
+        ringPulse.play();
+
+        return overlay;
+    }
+
+    private void startOnboardingFlow() {
+        onboardingMessageLabel.setText("Deberá dirigirse a la toma de decisiones");
+
+        rightButton.setDisable(false);
+        rightButton.setOpacity(1.0);
+        rightButton.setScaleX(1.0);
+        rightButton.setScaleY(1.0);
+        rightButton.setStyle(
+            "-fx-background-color: #e09d10; " +
+            "-fx-background-radius: 11; " +
+            "-fx-cursor: hand;"
+        );
+        rightButton.setOnMouseClicked(e -> openAnalyticsBoard());
+        rightButton.setOnMouseEntered(e -> {
+            ScaleTransition grow = new ScaleTransition(Duration.millis(130), rightButton);
+            grow.setToX(1.03);
+            grow.setToY(1.03);
+            grow.playFromStart();
+        });
+        rightButton.setOnMouseExited(e -> {
+            ScaleTransition shrink = new ScaleTransition(Duration.millis(130), rightButton);
+            shrink.setToX(1.0);
+            shrink.setToY(1.0);
+            shrink.playFromStart();
+        });
+
+        javafx.animation.PauseTransition delay = new javafx.animation.PauseTransition(javafx.util.Duration.millis(500));
+        delay.setOnFinished(ev -> javafx.application.Platform.runLater(() -> javafx.application.Platform.runLater(() -> {
+            view.applyCss();
+            view.layout();
+            positionSpotlightOn(rightButton, 0.14);
+            positionFocusRingOn(rightButton);
+            positionOnboardingDialogBottom();
+        })));
+        delay.play();
+    }
+
+    private void positionSpotlightOn(Node target, double minRadius) {
+        if (target == null) {
+            onboardingSpotlight.setVisible(false);
+            onboardingDimLayer.setVisible(true);
+            onboardingDimLayer.setFill(Color.color(0, 0, 0, 0.82));
+            return;
+        }
+        positionSpotlightOnBounds(getVisualSceneBounds(target), minRadius);
+    }
+
+    private void positionSpotlightOnBounds(Bounds targetBounds, double minRadius) {
+        if (targetBounds == null || onboardingOverlay.getWidth() <= 0 || onboardingOverlay.getHeight() <= 0) {
+            onboardingSpotlight.setVisible(false);
+            onboardingDimLayer.setVisible(true);
+            onboardingDimLayer.setFill(Color.color(0, 0, 0, 0.82));
+            return;
+        }
+
+        Bounds overlayBounds = onboardingOverlay.localToScene(onboardingOverlay.getBoundsInLocal());
+        double overlayW = overlayBounds.getWidth();
+        double overlayH = overlayBounds.getHeight();
+        if (overlayW <= 0 || overlayH <= 0) {
+            return;
+        }
+
+        double centerX = ((targetBounds.getMinX() + targetBounds.getMaxX()) / 2.0 - overlayBounds.getMinX()) / overlayW;
+        double centerY = ((targetBounds.getMinY() + targetBounds.getMaxY()) / 2.0 - overlayBounds.getMinY()) / overlayH;
+        double targetSize = Math.max(targetBounds.getWidth(), targetBounds.getHeight());
+        double radius = Math.max(minRadius, Math.min(0.34, (targetSize * 3.4) / Math.min(overlayW, overlayH)));
+
+        onboardingDimLayer.setVisible(false);
+        onboardingSpotlight.setVisible(true);
+        onboardingSpotlight.setFill(new RadialGradient(
+                0, 0, centerX, centerY, radius, true, CycleMethod.NO_CYCLE,
+                new Stop(0.00, Color.TRANSPARENT),
+                new Stop(0.38, Color.TRANSPARENT),
+                new Stop(0.62, Color.color(3.0 / 255.0, 7.0 / 255.0, 18.0 / 255.0, 0.45)),
+                new Stop(0.85, Color.color(3.0 / 255.0, 7.0 / 255.0, 18.0 / 255.0, 0.90)),
+                new Stop(1.00, Color.color(3.0 / 255.0, 7.0 / 255.0, 18.0 / 255.0, 0.96))
+        ));
+    }
+
+    private void positionFocusRingOn(Node target) {
+        if (target == null) {
+            onboardingFocusRing.setVisible(false);
+            return;
+        }
+        positionFocusRingOnBounds(getVisualSceneBounds(target));
+    }
+
+    private void positionFocusRingOnBounds(Bounds sceneBounds) {
+        if (sceneBounds == null || onboardingFloatLayer == null) {
+            onboardingFocusRing.setVisible(false);
+            return;
+        }
+
+        Point2D topLeft = onboardingFloatLayer.sceneToLocal(sceneBounds.getMinX(), sceneBounds.getMinY());
+        Point2D bottomRight = onboardingFloatLayer.sceneToLocal(sceneBounds.getMaxX(), sceneBounds.getMaxY());
+
+        double minX = Math.min(topLeft.getX(), bottomRight.getX());
+        double minY = Math.min(topLeft.getY(), bottomRight.getY());
+        double maxX = Math.max(topLeft.getX(), bottomRight.getX());
+        double maxY = Math.max(topLeft.getY(), bottomRight.getY());
+
+        onboardingFocusRing.setLayoutX(minX);
+        onboardingFocusRing.setLayoutY(minY);
+        onboardingFocusRing.setWidth(Math.max(1, maxX - minX));
+        onboardingFocusRing.setHeight(Math.max(1, maxY - minY));
+        onboardingFocusRing.setVisible(true);
+    }
+
+    private Bounds getVisualSceneBounds(Node node) {
+        if (node == null || !node.isVisible()) {
+            return null;
+        }
+
+        Bounds local = node.getLayoutBounds();
+        if (local.getWidth() <= 0 || local.getHeight() <= 0) {
+            local = node.getBoundsInLocal();
+        }
+
+        Point2D topLeft = node.localToScene(local.getMinX(), local.getMinY());
+        Point2D topRight = node.localToScene(local.getMaxX(), local.getMinY());
+        Point2D bottomLeft = node.localToScene(local.getMinX(), local.getMaxY());
+        Point2D bottomRight = node.localToScene(local.getMaxX(), local.getMaxY());
+
+        double minX = Math.min(Math.min(topLeft.getX(), topRight.getX()), Math.min(bottomLeft.getX(), bottomRight.getX()));
+        double minY = Math.min(Math.min(topLeft.getY(), topRight.getY()), Math.min(bottomLeft.getY(), bottomRight.getY()));
+        double maxX = Math.max(Math.max(topLeft.getX(), topRight.getX()), Math.max(bottomLeft.getX(), bottomRight.getX()));
+        double maxY = Math.max(Math.max(topLeft.getY(), topRight.getY()), Math.max(bottomLeft.getY(), bottomRight.getY()));
+        return new javafx.geometry.BoundingBox(minX, minY, maxX - minX, maxY - minY);
+    }
+
+    private void positionOnboardingDialogBottom() {
+        onboardingDialog.applyCss();
+        onboardingDialog.layout();
+        double layerW = onboardingFloatLayer.getWidth();
+        double layerH = onboardingFloatLayer.getHeight();
+        if (layerW <= 0 || layerH <= 0) {
+            return;
+        }
+        double dialogW = onboardingDialog.getWidth();
+        double dialogH = onboardingDialog.getHeight();
+        double bottomMargin = 140;
+        onboardingDialog.setLayoutX(Math.max(24, (layerW - dialogW) / 2.0));
+        onboardingDialog.setLayoutY(Math.max(24, layerH - dialogH - bottomMargin));
     }
 }
