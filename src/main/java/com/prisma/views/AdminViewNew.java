@@ -40,6 +40,9 @@ import javafx.util.Duration;
 
 import org.kordamp.ikonli.fontawesome5.FontAwesomeSolid;
 import org.kordamp.ikonli.javafx.FontIcon;
+import javafx.scene.media.Media;
+import javafx.scene.media.MediaPlayer;
+import javafx.scene.media.MediaView;
 
 public class AdminViewNew {
     private static final String FONT = "'Segoe UI'";
@@ -49,6 +52,8 @@ public class AdminViewNew {
     private final Label timerLabel;
     private final HBox timerBadge;
     private final Timeline timerTimeline;
+    private MediaView mediaView;
+    private BorderPane shellContainer;
 
     public static boolean onboardingMode = false;
     private StackPane onboardingOverlay;
@@ -150,9 +155,18 @@ public class AdminViewNew {
         shell.setTop(topBar);
         shell.setCenter(centerArea);
         shell.setBottom(actionBar);
+        this.shellContainer = shell;
+
+        mediaView = new MediaView();
+        mediaView.setPreserveRatio(false);
+        mediaView.fitWidthProperty().bind(view.widthProperty());
+        mediaView.fitHeightProperty().bind(view.heightProperty());
+        mediaView.setVisible(false);
+        mediaView.setMouseTransparent(true);
 
         view.getChildren().addAll(
             backgroundView,
+            mediaView,
             radialOverlay,
             topGradient,
             bottomGradient,
@@ -242,6 +256,33 @@ public class AdminViewNew {
         stage.setFullScreen(true);
         if (PlayerViewBrown.onboardingMode) {
             playerView.startOnboardingFlowExternal();
+        }
+    }
+
+    private void playTransitionAndGo(String videoFilename, Runnable action) {
+        // Disable UI interaction
+        view.setMouseTransparent(true);
+
+        // Hide UI elements smoothly
+        FadeTransition hideUi = new FadeTransition(Duration.millis(300), shellContainer);
+        hideUi.setToValue(0.0);
+        hideUi.play();
+
+        try {
+            String videoUrl = getClass().getResource("/styles/assets/videos/" + videoFilename).toExternalForm();
+            Media media = new Media(videoUrl);
+            MediaPlayer player = new MediaPlayer(media);
+            mediaView.setMediaPlayer(player);
+            mediaView.setVisible(true);
+            
+            player.setOnEndOfMedia(() -> {
+                action.run();
+                view.setMouseTransparent(false);
+            });
+            player.play();
+        } catch (Exception e) {
+            System.err.println("Error playing video transition: " + e.getMessage());
+            action.run();
         }
     }
 
@@ -372,7 +413,7 @@ public class AdminViewNew {
             "Procesos del despacho",
             "Noticias criminales y expedientes",
             false,
-            this::openCaseManagement
+            () -> playTransitionAndGo("VIDEO2.mp4", this::openCaseManagement)
         );
 
         javafx.scene.Node leftButtonContainer = leftButton;
@@ -427,7 +468,7 @@ public class AdminViewNew {
             "Toma de decisiones",
             "Patrones y conexiones",
             true,
-            this::openAnalyticsBoard
+            () -> playTransitionAndGo("VIDEO1.mp4", this::openAnalyticsBoard)
         );
 
         if (isFirstTime) {
@@ -637,7 +678,7 @@ public class AdminViewNew {
         nextButton.setOnAction(e -> {
             onboardingMode = false;
             PlayerViewBrown.onboardingMode = true;
-            openAnalyticsBoard();
+            playTransitionAndGo("VIDEO1.mp4", this::openAnalyticsBoard);
         });
 
         HBox actions = new HBox(nextButton);
@@ -717,7 +758,7 @@ public class AdminViewNew {
             "-fx-background-radius: 11; " +
             "-fx-cursor: hand;"
         );
-        rightButton.setOnMouseClicked(e -> openAnalyticsBoard());
+        rightButton.setOnMouseClicked(e -> playTransitionAndGo("VIDEO1.mp4", this::openAnalyticsBoard));
         rightButton.setOnMouseEntered(e -> {
             ScaleTransition grow = new ScaleTransition(Duration.millis(130), rightButton);
             grow.setToX(1.03);
