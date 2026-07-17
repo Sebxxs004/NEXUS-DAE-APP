@@ -206,10 +206,18 @@ public class CasesManagementBrownView {
             AdminViewNew adminViewNew = new AdminViewNew(stage);
             Scene scene = new Scene(adminViewNew.getView(), 1500, 900);
             Theme.apply(scene);
-            stage.setScene(scene);
-            stage.setMaximized(true);
-            stage.setFullScreen(true);
-        });
+
+            javafx.scene.Scene currentScene = stage.getScene();
+            if (currentScene != null) {
+                javafx.scene.Parent viewRoot = scene.getRoot();
+                scene.setRoot(new javafx.scene.layout.Region()); // Detach from dummy scene
+                currentScene.setRoot(viewRoot);
+            } else {
+                stage.setScene(scene);
+                stage.setMaximized(true);
+                stage.setFullScreen(true);
+            }
+});
 
         Region topSpacer = new Region();
         HBox.setHgrow(topSpacer, Priority.ALWAYS);
@@ -1027,10 +1035,18 @@ public class CasesManagementBrownView {
         }
         Scene scene = new Scene(view, 1500, 900);
         playerViewBrown.applyTheme(scene);
-        stage.setScene(scene);
-        stage.setMaximized(true);
-        stage.setFullScreen(true);
-        playerViewBrown.focusCase(modalCurrentCase.getNombre());
+
+                javafx.scene.Scene currentScene = stage.getScene();
+        if (currentScene != null) {
+            javafx.scene.Parent viewRoot = scene.getRoot();
+            scene.setRoot(new javafx.scene.layout.Region()); // Detach from dummy scene
+            currentScene.setRoot(viewRoot);
+        } else {
+            stage.setScene(scene);
+            stage.setMaximized(true);
+            stage.setFullScreen(true);
+        }
+playerViewBrown.focusCase(modalCurrentCase.getNombre());
     }
 
     private Image loadCaseImage(Caso caso) {
@@ -1363,10 +1379,60 @@ public class CasesManagementBrownView {
         return backdrop;
     }
 
-    private void showAlert(javafx.scene.control.Alert.AlertType type, String message) {
-        javafx.scene.control.Alert alert = new javafx.scene.control.Alert(type);
-        alert.setContentText(message);
-        alert.showAndWait();
+        private void showAlert(javafx.scene.control.Alert.AlertType type, String message) {
+        javafx.scene.layout.StackPane backdrop = new javafx.scene.layout.StackPane();
+        backdrop.setStyle("-fx-background-color: rgba(4, 9, 26, 0.82);");
+
+        javafx.scene.layout.VBox dialog = new javafx.scene.layout.VBox(18);
+        dialog.setMaxWidth(500);
+        dialog.setMaxHeight(javafx.scene.layout.Region.USE_PREF_SIZE);
+        dialog.setPadding(new javafx.geometry.Insets(24));
+        dialog.setAlignment(javafx.geometry.Pos.CENTER);
+        
+        String borderColor = type == javafx.scene.control.Alert.AlertType.ERROR ? "#ef4444" : 
+                             (type == javafx.scene.control.Alert.AlertType.WARNING ? "#f59e0b" : "#3b82f6");
+        
+        dialog.setStyle(
+            "-fx-background-color: #0b1a3a; " +
+            "-fx-border-color: " + borderColor + "; " +
+            "-fx-border-width: 2; " +
+            "-fx-border-radius: 12; " +
+            "-fx-background-radius: 12;"
+        );
+
+        javafx.scene.control.Label titleLabel = new javafx.scene.control.Label(
+            type == javafx.scene.control.Alert.AlertType.ERROR ? "Error" : 
+            (type == javafx.scene.control.Alert.AlertType.WARNING ? "Atención" : "Mensaje")
+        );
+        titleLabel.setStyle(
+            "-fx-font-size: 22; " +
+            "-fx-font-weight: bold; " +
+            "-fx-text-fill: " + borderColor + "; " +
+            "-fx-font-family: 'Segoe UI', sans-serif;"
+        );
+
+        javafx.scene.control.Label msgLabel = new javafx.scene.control.Label(message);
+        msgLabel.setWrapText(true);
+        msgLabel.setStyle("-fx-font-size: 16; -fx-text-fill: white; -fx-font-family: 'Segoe UI', sans-serif;");
+
+        javafx.scene.control.Button okBtn = new javafx.scene.control.Button("Aceptar");
+        okBtn.setStyle(
+            "-fx-background-color: " + borderColor + "; " +
+            "-fx-text-fill: white; " +
+            "-fx-font-weight: bold; " +
+            "-fx-font-size: 14; " +
+            "-fx-border-radius: 6; " +
+            "-fx-background-radius: 6; " +
+            "-fx-padding: 10 20 10 20; " +
+            "-fx-cursor: hand;"
+        );
+        okBtn.setOnAction(e -> view.getChildren().remove(backdrop));
+
+        dialog.getChildren().addAll(titleLabel, msgLabel, okBtn);
+        backdrop.getChildren().add(dialog);
+        
+        view.getChildren().add(backdrop);
+        backdrop.toFront();
     }
 
     private boolean containsIgnoreCase(String value, String query) {
@@ -1729,10 +1795,18 @@ public class CasesManagementBrownView {
         AdminViewNew adminViewNew = new AdminViewNew(stage);
         Scene scene = new Scene(adminViewNew.getView(), 1500, 900);
         adminViewNew.applyTheme(scene);
-        stage.setScene(scene);
-        stage.setMaximized(true);
-        stage.setFullScreen(true);
-    }
+
+                javafx.scene.Scene currentScene = stage.getScene();
+        if (currentScene != null) {
+            javafx.scene.Parent viewRoot = scene.getRoot();
+            scene.setRoot(new javafx.scene.layout.Region()); // Detach from dummy scene
+            currentScene.setRoot(viewRoot);
+        } else {
+            stage.setScene(scene);
+            stage.setMaximized(true);
+            stage.setFullScreen(true);
+        }
+}
 
     private void showOnboardingIntroStep() {
         hideModal();

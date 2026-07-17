@@ -228,19 +228,35 @@ public class AdminViewNew {
         PlayerViewBrown.clearActiveInstance();
         Scene scene = new Scene(new LoginView(stage).getView(), 1500, 900);
         Theme.apply(scene);
-        stage.setScene(scene);
-        stage.setMaximized(true);
-        stage.setFullScreen(true);
-    }
+
+                javafx.scene.Scene currentScene = stage.getScene();
+        if (currentScene != null) {
+            javafx.scene.Parent viewRoot = scene.getRoot();
+            scene.setRoot(new javafx.scene.layout.Region()); // Detach from dummy scene
+            currentScene.setRoot(viewRoot);
+        } else {
+            stage.setScene(scene);
+            stage.setMaximized(true);
+            stage.setFullScreen(true);
+        }
+}
 
     private void openCaseManagement() {
         CasesManagementBrownView casesView = new CasesManagementBrownView(stage);
         Scene scene = new Scene(casesView.getView(), 1500, 900);
         casesView.applyTheme(scene);
-        stage.setScene(scene);
-        stage.setMaximized(true);
-        stage.setFullScreen(true);
-    }
+
+                javafx.scene.Scene currentScene = stage.getScene();
+        if (currentScene != null) {
+            javafx.scene.Parent viewRoot = scene.getRoot();
+            scene.setRoot(new javafx.scene.layout.Region()); // Detach from dummy scene
+            currentScene.setRoot(viewRoot);
+        } else {
+            stage.setScene(scene);
+            stage.setMaximized(true);
+            stage.setFullScreen(true);
+        }
+}
 
     private void openAnalyticsBoard() {
         PlayerViewBrown.clearActiveInstance();
@@ -251,10 +267,18 @@ public class AdminViewNew {
         }
         Scene scene = new Scene(view, 1500, 900);
         playerView.applyTheme(scene);
-        stage.setScene(scene);
-        stage.setMaximized(true);
-        stage.setFullScreen(true);
-        if (PlayerViewBrown.onboardingMode) {
+
+                javafx.scene.Scene currentScene = stage.getScene();
+        if (currentScene != null) {
+            javafx.scene.Parent viewRoot = scene.getRoot();
+            scene.setRoot(new javafx.scene.layout.Region()); // Detach from dummy scene
+            currentScene.setRoot(viewRoot);
+        } else {
+            stage.setScene(scene);
+            stage.setMaximized(true);
+            stage.setFullScreen(true);
+        }
+if (PlayerViewBrown.onboardingMode) {
             playerView.startOnboardingFlowExternal();
         }
     }

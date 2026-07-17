@@ -184,10 +184,18 @@ public class PlayerViewBrown {
             AdminViewNew adminView = new AdminViewNew(stage);
             Scene scene = new Scene(adminView.getView(), 1500, 900);
             adminView.applyTheme(scene);
-            stage.setScene(scene);
-            stage.setMaximized(true);
-            stage.setFullScreen(true);
-        });
+
+            javafx.scene.Scene currentScene = stage.getScene();
+            if (currentScene != null) {
+                javafx.scene.Parent viewRoot = scene.getRoot();
+                scene.setRoot(new javafx.scene.layout.Region()); // Detach from dummy scene
+                currentScene.setRoot(viewRoot);
+            } else {
+                stage.setScene(scene);
+                stage.setMaximized(true);
+                stage.setFullScreen(true);
+            }
+});
 
         finishInvestigationButton.setText("Terminar");
         styleDangerButton(finishInvestigationButton);
@@ -1677,10 +1685,18 @@ public class PlayerViewBrown {
         CasesManagementBrownView casesView = new CasesManagementBrownView(stage);
         Scene scene = new Scene(casesView.getView(), 1500, 900);
         casesView.applyTheme(scene);
-        stage.setScene(scene);
-        stage.setMaximized(true);
-        stage.setFullScreen(true);
-    }
+
+                javafx.scene.Scene currentScene = stage.getScene();
+        if (currentScene != null) {
+            javafx.scene.Parent viewRoot = scene.getRoot();
+            scene.setRoot(new javafx.scene.layout.Region()); // Detach from dummy scene
+            currentScene.setRoot(viewRoot);
+        } else {
+            stage.setScene(scene);
+            stage.setMaximized(true);
+            stage.setFullScreen(true);
+        }
+}
 
     private TextField findTextField(Parent root) {
         if (root instanceof TextField tf) {

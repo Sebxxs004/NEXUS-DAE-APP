@@ -272,10 +272,18 @@ public class PlayerView {
             LoginView loginView = new LoginView(stage);
             Scene scene = new Scene(loginView.getView(), 980, 680);
             Theme.apply(scene);
-            stage.setScene(scene);
-            stage.setMaximized(true);
-            stage.setFullScreen(true);
-        });
+
+            javafx.scene.Scene currentScene = stage.getScene();
+            if (currentScene != null) {
+                javafx.scene.Parent viewRoot = scene.getRoot();
+                scene.setRoot(new javafx.scene.layout.Region()); // Detach from dummy scene
+                currentScene.setRoot(viewRoot);
+            } else {
+                stage.setScene(scene);
+                stage.setMaximized(true);
+                stage.setFullScreen(true);
+            }
+});
 
         HBox topRight = new HBox(12, timerLabel, sessionLabel, finishInvestigationButton, logoutButton);
         topRight.getStyleClass().add("nav-actions");

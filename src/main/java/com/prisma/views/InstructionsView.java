@@ -654,19 +654,35 @@ public class InstructionsView {
         }
         Scene scene = new Scene(new AdminViewNew(stage).getView(), 1500, 900);
         Theme.apply(scene);
-        stage.setScene(scene);
-        stage.setMaximized(true);
-        stage.setFullScreen(true);
-    }
+
+                javafx.scene.Scene currentScene = stage.getScene();
+        if (currentScene != null) {
+            javafx.scene.Parent viewRoot = scene.getRoot();
+            scene.setRoot(new javafx.scene.layout.Region()); // Detach from dummy scene
+            currentScene.setRoot(viewRoot);
+        } else {
+            stage.setScene(scene);
+            stage.setMaximized(true);
+            stage.setFullScreen(true);
+        }
+}
 
     private void goBackToLogin() {
         LoginView loginView = new LoginView(stage);
         Scene scene = new Scene(loginView.getView(), 1500, 900);
         Theme.apply(scene);
-        stage.setScene(scene);
-        stage.setMaximized(true);
-        stage.setFullScreen(true);
-    }
+
+                javafx.scene.Scene currentScene = stage.getScene();
+        if (currentScene != null) {
+            javafx.scene.Parent viewRoot = scene.getRoot();
+            scene.setRoot(new javafx.scene.layout.Region()); // Detach from dummy scene
+            currentScene.setRoot(viewRoot);
+        } else {
+            stage.setScene(scene);
+            stage.setMaximized(true);
+            stage.setFullScreen(true);
+        }
+}
 
     public Parent getView() {
         return view;

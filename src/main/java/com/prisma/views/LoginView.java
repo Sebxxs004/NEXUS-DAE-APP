@@ -273,19 +273,35 @@ public class LoginView {
         AdminViewNew adminViewNew = new AdminViewNew(stage);
         Scene scene = new Scene(adminViewNew.getView(), 1500, 900);
         Theme.apply(scene);
-        stage.setScene(scene);
-        stage.setMaximized(true);
-        stage.setFullScreen(true);
-    }
+
+                javafx.scene.Scene currentScene = stage.getScene();
+        if (currentScene != null) {
+            javafx.scene.Parent viewRoot = scene.getRoot();
+            scene.setRoot(new javafx.scene.layout.Region()); // Detach from dummy scene
+            currentScene.setRoot(viewRoot);
+        } else {
+            stage.setScene(scene);
+            stage.setMaximized(true);
+            stage.setFullScreen(true);
+        }
+}
 
     private void openInstructions() {
         InstructionsView instructionsView = new InstructionsView(stage);
         Scene scene = new Scene(instructionsView.getView(), 1500, 900);
         Theme.apply(scene);
-        stage.setScene(scene);
-        stage.setMaximized(true);
-        stage.setFullScreen(true);
-    }
+
+                javafx.scene.Scene currentScene = stage.getScene();
+        if (currentScene != null) {
+            javafx.scene.Parent viewRoot = scene.getRoot();
+            scene.setRoot(new javafx.scene.layout.Region()); // Detach from dummy scene
+            currentScene.setRoot(viewRoot);
+        } else {
+            stage.setScene(scene);
+            stage.setMaximized(true);
+            stage.setFullScreen(true);
+        }
+}
 
     public StackPane getView() {
         return view;
@@ -299,8 +315,16 @@ public class LoginView {
         LoginView loginView = new LoginView(stage);
         Scene scene = new Scene(loginView.getView(), 1500, 900);
         applyTheme(scene);
-        stage.setScene(scene);
-        stage.setMaximized(true);
-        stage.setFullScreen(true);
-    }
+
+                javafx.scene.Scene currentScene = stage.getScene();
+        if (currentScene != null) {
+            javafx.scene.Parent viewRoot = scene.getRoot();
+            scene.setRoot(new javafx.scene.layout.Region()); // Detach from dummy scene
+            currentScene.setRoot(viewRoot);
+        } else {
+            stage.setScene(scene);
+            stage.setMaximized(true);
+            stage.setFullScreen(true);
+        }
+}
 }
