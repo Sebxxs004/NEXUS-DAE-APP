@@ -52,6 +52,11 @@ import javafx.scene.shape.Circle;
 import javafx.scene.shape.Rectangle;
 import javafx.stage.Stage;
 import javafx.util.Duration;
+import org.kordamp.ikonli.fontawesome5.FontAwesomeSolid;
+import org.kordamp.ikonli.javafx.FontIcon;
+import javafx.scene.layout.CornerRadii;
+import javafx.scene.layout.Background;
+import javafx.scene.layout.BackgroundFill;
 
 public class CasesManagementBrownView {
     private static final String FONT = "'Segoe UI'";
@@ -213,7 +218,7 @@ public class CasesManagementBrownView {
         topRow.setAlignment(Pos.CENTER_LEFT);
         topRow.setPadding(new Insets(10, 16, 10, 16));
         topRow.setStyle(
-            "-fx-background-color: #0a1a3a; " +
+            "-fx-background-color: #0A1128; " +
             "-fx-border-color: transparent transparent #1a3a7a transparent; " +
             "-fx-border-width: 0 0 1 0;"
         );
@@ -222,30 +227,30 @@ public class CasesManagementBrownView {
         searchIcon.setStyle("-fx-font-size: 15; -fx-text-fill: #7ba3d8; -fx-font-family: " + FONT + ";");
 
         searchField = new TextField();
-        searchField.setPromptText("Buscar caso...");
-        searchField.setPrefHeight(36);
+        searchField.setPromptText("Buscar por número de caso o nombre...");
+        searchField.setPrefHeight(40);
         searchField.setStyle(
-            "-fx-background-color: #08142e; " +
+            "-fx-background-color: #FFFFFF; " +
             "-fx-border-color: #1a3a7a; " +
             "-fx-border-radius: 7; " +
             "-fx-background-radius: 7; " +
             "-fx-border-width: 1; " +
             "-fx-padding: 7 12 7 32; " +
-            "-fx-text-fill: #d0e4ff; " +
-            "-fx-prompt-text-fill: #3a5a8a; " +
-            "-fx-font-size: 12; " +
+            "-fx-text-fill: #000000; " +
+            "-fx-prompt-text-fill: #64748B; " +
+            "-fx-font-size: 14; " +
             "-fx-font-family: " + FONT + ";"
         );
         searchField.focusedProperty().addListener((obs, wasFocused, isFocused) -> searchField.setStyle(
-            "-fx-background-color: #08142e; " +
-            "-fx-border-color: " + (isFocused ? "#3b7de0" : "#1a3a7a") + "; " +
+            "-fx-background-color: #FFFFFF; " +
+            "-fx-border-color: " + (isFocused ? "#F1C40F" : "#1a3a7a") + "; " +
             "-fx-border-radius: 7; " +
             "-fx-background-radius: 7; " +
-            "-fx-border-width: 1; " +
+            "-fx-border-width: " + (isFocused ? "2" : "1") + "; " +
             "-fx-padding: 7 12 7 32; " +
-            "-fx-text-fill: #d0e4ff; " +
-            "-fx-prompt-text-fill: #3a5a8a; " +
-            "-fx-font-size: 12; " +
+            "-fx-text-fill: #000000; " +
+            "-fx-prompt-text-fill: #64748B; " +
+            "-fx-font-size: 14; " +
             "-fx-font-family: " + FONT + ";"
         ));
         searchField.textProperty().addListener((obs, oldValue, newValue) -> refreshGrid(stage));
@@ -253,63 +258,74 @@ public class CasesManagementBrownView {
 
         Label caseCountLabel = new Label("0 casos");
         caseCountLabel.setStyle(
-            "-fx-font-size: 12; " +
-            "-fx-text-fill: #7ba3d8; " +
+            "-fx-font-size: 14; " +
+            "-fx-font-weight: bold; " +
+            "-fx-text-fill: #FFFFFF; " +
             "-fx-font-family: " + FONT + ";"
         );
         searchField.getProperties().put("caseCountLabel", caseCountLabel);
 
-        batchGroupNewButton = new Button("Crear nuevo grupo");
+        batchGroupNewButton = new Button("AGRUPAR SELECCIONADAS");
         batchGroupNewButton.setStyle(
-            "-fx-background-color: #2563c8; " +
-            "-fx-border-color: #3b7de0; " +
-            "-fx-border-radius: 6; " +
+            "-fx-background-color: #64748B; " +
             "-fx-background-radius: 6; " +
-            "-fx-border-width: 1; " +
-            "-fx-padding: 6 12 6 12; " +
+            "-fx-padding: 10 20 10 20; " +
             "-fx-text-fill: white; " +
             "-fx-font-weight: bold; " +
-            "-fx-font-size: 11; " +
+            "-fx-font-size: 14; " +
             "-fx-font-family: " + FONT + "; " +
             "-fx-cursor: hand;"
         );
         batchGroupNewButton.setOnAction(e -> showBatchJustificationOverlay());
 
-        batchGroupExistingButton = new Button("Agregar a grupo");
+        batchGroupExistingButton = new Button("DESHACER SELECCIÓN");
         batchGroupExistingButton.setStyle(
-            "-fx-background-color: #10b981; " +
-            "-fx-border-color: #34d399; " +
-            "-fx-border-radius: 6; " +
+            "-fx-background-color: #E00A1A; " +
             "-fx-background-radius: 6; " +
-            "-fx-border-width: 1; " +
-            "-fx-padding: 6 12 6 12; " +
+            "-fx-padding: 10 20 10 20; " +
             "-fx-text-fill: white; " +
             "-fx-font-weight: bold; " +
-            "-fx-font-size: 11; " +
+            "-fx-font-size: 14; " +
             "-fx-font-family: " + FONT + "; " +
             "-fx-cursor: hand;"
         );
-        batchGroupExistingButton.setOnAction(e -> showAddToGroupOverlay());
+        batchGroupExistingButton.setOnAction(e -> {
+            selectedCasesForBatch.clear();
+            refreshGrid(stage);
+            updateBatchButtonState();
+        });
 
-        batchButtonsContainer = new HBox(8, batchGroupNewButton, batchGroupExistingButton);
-        batchButtonsContainer.setAlignment(Pos.CENTER_LEFT);
+        Label actionTitle = new Label("ACCIONES DE AGRUPACIÓN");
+        actionTitle.setStyle("-fx-text-fill: white; -fx-font-weight: bold; -fx-padding: 6 20 6 20; -fx-font-size: 14; -fx-font-family: " + FONT + ";");
+        VBox actionTitleBox = new VBox(actionTitle);
+        actionTitleBox.setAlignment(Pos.CENTER);
+        actionTitleBox.setStyle("-fx-background-color: #E00A1A; -fx-background-radius: 8 8 0 0;");
+
+        HBox actionButtonsBox = new HBox(12, batchGroupNewButton, batchGroupExistingButton);
+        actionButtonsBox.setAlignment(Pos.CENTER);
+        actionButtonsBox.setPadding(new Insets(16));
+        actionButtonsBox.setStyle("-fx-background-color: white; -fx-background-radius: 0 0 8 8;");
+
+        VBox bottomActionBarBox = new VBox(actionTitleBox, actionButtonsBox);
+        bottomActionBarBox.setMaxWidth(500);
+
+        batchButtonsContainer = new HBox(bottomActionBarBox);
+        batchButtonsContainer.setAlignment(Pos.CENTER);
+        batchButtonsContainer.setPadding(new Insets(10));
         batchButtonsContainer.setVisible(false);
         batchButtonsContainer.setManaged(false);
 
-        HBox searchRow = new HBox(12, searchIcon, searchField, caseCountLabel, batchButtonsContainer);
+        HBox searchRow = new HBox(12, searchIcon, searchField, caseCountLabel);
         searchRow.setAlignment(Pos.CENTER_LEFT);
         searchRow.setPadding(new Insets(10, 16, 10, 16));
-        searchRow.setStyle(
-            "-fx-background-color: #0d2459; " +
-            "-fx-border-color: transparent transparent #1a3a7a transparent; " +
-            "-fx-border-width: 0 0 1 0;"
-        );
+        searchRow.setStyle("-fx-background-color: #0A1128;");
 
-        Label subtitle = new Label("Selecciona un caso para ver su imagen en detalle.");
+        Label subtitle = new Label("Selecciona las carpetas que deseas agrupar o ver detalles");
         subtitle.setWrapText(true);
         subtitle.setStyle(
-            "-fx-font-size: 11; " +
-            "-fx-text-fill: #7ba3d8; " +
+            "-fx-font-size: 14; " +
+            "-fx-font-weight: bold; " +
+            "-fx-text-fill: #FFFFFF; " +
             "-fx-font-family: " + FONT + ";"
         );
 
@@ -319,7 +335,7 @@ public class CasesManagementBrownView {
         casesGrid.setTileAlignment(Pos.TOP_LEFT);
         casesGrid.setPrefColumns(3);
         casesGrid.setPrefTileWidth(290);
-        casesGrid.setPrefTileHeight(210);
+        casesGrid.setPrefTileHeight(250);
         casesGrid.setStyle("-fx-background-color: transparent;");
 
         gridScroll = new ScrollPane(casesGrid);
@@ -334,9 +350,10 @@ public class CasesManagementBrownView {
         VBox.setVgrow(gridScroll, Priority.ALWAYS);
 
         BorderPane contentShell = new BorderPane();
-        contentShell.setStyle("-fx-background-color: #08142e;");
-        contentShell.setTop(topRow);
-        contentShell.setCenter(new VBox(0, searchRow, subtitle, gridScroll));
+        contentShell.setStyle("-fx-background-color: #0A1128;");
+        contentShell.setTop(new VBox(0, topRow, searchRow));
+        contentShell.setBottom(batchButtonsContainer);
+        contentShell.setCenter(new VBox(0, subtitle, gridScroll));
         BorderPane.setMargin(subtitle, new Insets(8, 16, 4, 16));
         BorderPane.setMargin(gridScroll, new Insets(0, 16, 16, 16));
         VBox.setVgrow(gridScroll, Priority.ALWAYS);
@@ -430,224 +447,167 @@ public class CasesManagementBrownView {
     }
 
     private StackPane buildCaseCard(Stage stage, Caso caso) {
+        boolean isSelected = selectedCasesForBatch.contains(caso);
+        PlayerView.GroupCluster groupCluster = PlayerViewBrown.getInstance(stage).findGroupForCase(caso);
+        boolean isGrouped = groupCluster != null;
+
+        // Colors
+        String tabColor = isGrouped ? colorToRgb(groupCluster.getColor()) : "#084C8C";
+        
+        // Folder Tab
+        Region folderTab = new Region();
+        folderTab.setPrefHeight(20);
+        folderTab.setMaxWidth(120);
+        folderTab.setStyle("-fx-background-color: " + tabColor + "; -fx-background-radius: 12 12 0 0;");
+        
+        // Number badge on tab
+        String formattedNum = String.format("%02d", com.prisma.data.CasoRepository.getCasos().indexOf(caso) + 1);
+        Label numberBadge = new Label(formattedNum);
+        numberBadge.setStyle(
+            "-fx-background-color: #F1C40F; " +
+            "-fx-text-fill: #000000; " +
+            "-fx-font-size: 13; " +
+            "-fx-font-weight: bold; " +
+            "-fx-min-width: 32; " +
+            "-fx-min-height: 32; " +
+            "-fx-max-width: 32; " +
+            "-fx-max-height: 32; " +
+            "-fx-background-radius: 16; " +
+            "-fx-alignment: center; " +
+            "-fx-font-family: " + FONT + ";"
+        );
+        
+        StackPane tabContainer = new StackPane(folderTab, numberBadge);
+        StackPane.setAlignment(folderTab, Pos.BOTTOM_LEFT);
+        StackPane.setAlignment(numberBadge, Pos.CENTER_RIGHT);
+        tabContainer.setAlignment(Pos.BOTTOM_LEFT);
+        tabContainer.setPadding(new Insets(0, 10, 0, 0));
+        
+        // Image Area (White Background)
         StackPane imageArea = new StackPane();
         imageArea.setMinHeight(140);
         imageArea.setPrefHeight(140);
         imageArea.setMaxHeight(140);
-        imageArea.setStyle("-fx-background-color: #06101f; -fx-background-radius: 10 10 0 0;");
+        imageArea.setStyle("-fx-background-color: #FFFFFF; -fx-background-radius: 8; -fx-border-color: #E2E8F0; -fx-border-radius: 8;");
+        imageArea.setPadding(new Insets(4));
 
-        boolean hasCaseImage = caso != null && caso.tieneImagen()
-                && caso.getImagenPath() != null
-                && cachedFileExists(caso.getImagenPath());
-
+        boolean hasCaseImage = caso != null && caso.tieneImagen() && caso.getImagenPath() != null && cachedFileExists(caso.getImagenPath());
         if (hasCaseImage) {
             ImageView preview = new ImageView(loadCaseImage(caso));
             preview.setPreserveRatio(true);
-            preview.fitWidthProperty().bind(imageArea.widthProperty().subtract(8));
-            preview.fitHeightProperty().bind(imageArea.heightProperty().subtract(8));
+            preview.fitWidthProperty().bind(imageArea.widthProperty().subtract(16));
+            preview.fitHeightProperty().bind(imageArea.heightProperty().subtract(16));
             imageArea.getChildren().add(preview);
         } else {
-            Label placeholderIcon = new Label("⬜");
-            placeholderIcon.setStyle("-fx-font-size: 28; -fx-text-fill: #2a4a7a; -fx-font-family: " + FONT + ";");
-            Label placeholderText = new Label("Sin imagen cargada");
-            placeholderText.setStyle("-fx-font-size: 10; -fx-text-fill: #2a4a7a; -fx-font-family: " + FONT + ";");
-            VBox placeholder = new VBox(4, placeholderIcon, placeholderText);
-            placeholder.setAlignment(Pos.CENTER);
-            imageArea.getChildren().add(placeholder);
+            FontIcon placeholderIcon = new FontIcon(FontAwesomeSolid.FILE_ALT);
+            placeholderIcon.setIconSize(64);
+            placeholderIcon.setIconColor(Color.web("#64748B"));
+            imageArea.getChildren().add(placeholderIcon);
         }
-
-        int caseIndex = com.prisma.data.CasoRepository.getCasos().indexOf(caso) + 1;
-        String formattedNum = String.format("%02d", caseIndex);
-
-        Label numberBadge = new Label(formattedNum);
-        numberBadge.setStyle(
-            "-fx-background-color: #c8a03b; " +
-            "-fx-text-fill: #0a1a3a; " +
-            "-fx-font-size: 11; " +
-            "-fx-font-weight: bold; " +
-            "-fx-min-width: 24; " +
-            "-fx-min-height: 24; " +
-            "-fx-max-width: 24; " +
-            "-fx-max-height: 24; " +
-            "-fx-background-radius: 12; " +
-            "-fx-alignment: center; " +
-            "-fx-font-family: " + FONT + ";"
+        
+        // Checkbox Overlay
+        javafx.scene.control.CheckBox selectBox = new javafx.scene.control.CheckBox();
+        selectBox.setSelected(isSelected);
+        selectBox.setStyle(
+            "-fx-cursor: hand; " +
+            "-fx-scale-x: 1.5; " +
+            "-fx-scale-y: 1.5;"
         );
-        StackPane.setAlignment(numberBadge, Pos.TOP_LEFT);
-        StackPane.setMargin(numberBadge, new Insets(8, 0, 0, 8));
-        imageArea.getChildren().add(numberBadge);
+        selectBox.selectedProperty().addListener((obs, oldVal, newVal) -> {
+            if (newVal) {
+                selectedCasesForBatch.add(caso);
+            } else {
+                selectedCasesForBatch.remove(caso);
+            }
+            refreshGrid(stage);
+            updateBatchButtonState();
+        });
+        
+        StackPane checkOverlay = new StackPane(selectBox);
+        checkOverlay.setAlignment(Pos.BOTTOM_RIGHT);
+        checkOverlay.setPadding(new Insets(0, 10, -15, 0)); // Pull it down over the edge
+        checkOverlay.setPickOnBounds(false);
+
+        StackPane imageWithCheck = new StackPane(imageArea, checkOverlay);
+        imageWithCheck.setPadding(new Insets(10, 10, 20, 10)); // Extra bottom padding for checkbox overhang
 
         Label nameLabel = new Label(caso.getNombre());
-        nameLabel.setMaxWidth(200);
+        nameLabel.setMaxWidth(260);
+        nameLabel.setAlignment(Pos.CENTER);
         nameLabel.setTextOverrun(OverrunStyle.ELLIPSIS);
         nameLabel.setStyle(
-            "-fx-font-size: 11; " +
+            "-fx-font-size: 16; " +
             "-fx-font-weight: bold; " +
-            "-fx-text-fill: #d0e4ff; " +
+            "-fx-text-fill: #000000; " +
             "-fx-font-family: " + FONT + ";"
         );
-
-        Button copyNameButton = new Button("Copiar");
-        copyNameButton.setStyle(
-            "-fx-background-color: transparent; " +
-            "-fx-border-color: #1a3a7a; " +
-            "-fx-border-radius: 5; " +
-            "-fx-background-radius: 5; " +
-            "-fx-border-width: 1; " +
-            "-fx-padding: 4 8 4 8; " +
-            "-fx-text-fill: #7ba3d8; " +
-            "-fx-font-size: 10; " +
-            "-fx-font-family: " + FONT + "; " +
-            "-fx-cursor: hand;"
+        
+        Label statusLabel = new Label(isGrouped ? "Carpeta Agrupada" : (isSelected ? "Carpeta Seleccionada" : "Carpeta Individual"));
+        statusLabel.setStyle(
+            "-fx-font-size: 12; " +
+            "-fx-font-weight: bold; " +
+            "-fx-text-fill: #64748B; " +
+            "-fx-font-family: " + FONT + ";"
         );
+        
+        VBox titleBox = new VBox(2, nameLabel, statusLabel);
+        titleBox.setAlignment(Pos.CENTER);
+        titleBox.setPadding(new Insets(0, 10, 10, 10));
+        titleBox.setStyle("-fx-background-color: #FFFFFF;");
+
+        // Footer Actions
+        FontIcon copyIcon = new FontIcon(FontAwesomeSolid.COPY);
+        copyIcon.setIconColor(Color.WHITE);
+        copyIcon.setIconSize(16);
+        Button copyNameButton = new Button("Copiar", copyIcon);
+        copyNameButton.setContentDisplay(ContentDisplay.TOP);
+        copyNameButton.setStyle("-fx-background-color: transparent; -fx-text-fill: white; -fx-font-weight: bold; -fx-cursor: hand;");
         copyNameButton.setOnAction(e -> copyCaseName(caso));
 
-        Button detailsButton = new Button("Ver");
-        detailsButton.setStyle(
-            "-fx-background-color: transparent; " +
-            "-fx-border-color: #1a3a7a; " +
-            "-fx-border-radius: 5; " +
-            "-fx-background-radius: 5; " +
-            "-fx-border-width: 1; " +
-            "-fx-padding: 4 9 4 9; " +
-            "-fx-text-fill: #7ba3d8; " +
-            "-fx-font-size: 11; " +
-            "-fx-font-family: " + FONT + "; " +
-            "-fx-cursor: hand;"
-        );
-        detailsButton.setOnMouseEntered(e -> detailsButton.setStyle(
-            "-fx-background-color: #2563c8; " +
-            "-fx-border-color: #2563c8; " +
-            "-fx-border-radius: 5; " +
-            "-fx-background-radius: 5; " +
-            "-fx-border-width: 1; " +
-            "-fx-padding: 4 9 4 9; " +
-            "-fx-text-fill: white; " +
-            "-fx-font-size: 11; " +
-            "-fx-font-family: " + FONT + "; " +
-            "-fx-cursor: hand;"
-        ));
-        detailsButton.setOnMouseExited(e -> detailsButton.setStyle(
-            "-fx-background-color: transparent; " +
-            "-fx-border-color: #1a3a7a; " +
-            "-fx-border-radius: 5; " +
-            "-fx-background-radius: 5; " +
-            "-fx-border-width: 1; " +
-            "-fx-padding: 4 9 4 9; " +
-            "-fx-text-fill: #7ba3d8; " +
-            "-fx-font-size: 11; " +
-            "-fx-font-family: " + FONT + "; " +
-            "-fx-cursor: hand;"
-        ));
+        FontIcon viewIcon = new FontIcon(FontAwesomeSolid.EYE);
+        viewIcon.setIconColor(Color.WHITE);
+        viewIcon.setIconSize(16);
+        Button detailsButton = new Button("Ver Detalle", viewIcon);
+        detailsButton.setContentDisplay(ContentDisplay.TOP);
+        detailsButton.setStyle("-fx-background-color: transparent; -fx-text-fill: white; -fx-font-weight: bold; -fx-cursor: hand;");
         detailsButton.setOnAction(e -> openCaseModal(stage, caso));
 
-        HBox statusRow = new HBox(8);
-        statusRow.setAlignment(Pos.CENTER_LEFT);
-        statusRow.setPadding(new Insets(6, 11, 4, 11));
-
-        PlayerView.GroupCluster groupCluster = PlayerViewBrown.getInstance(stage).findGroupForCase(caso);
-        boolean isGrouped = groupCluster != null;
+        HBox footer = new HBox(20, copyNameButton, detailsButton);
+        footer.setAlignment(Pos.CENTER);
+        footer.setPadding(new Insets(10));
+        footer.setStyle("-fx-background-color: #084C8C; -fx-background-radius: 0 0 8 8;");
+        
+        // If grouped, show group name instead of standard footer or alongside it? 
+        // Mockup keeps footer. Let's add group badge on top of image.
         if (isGrouped) {
-            Label statusBadge = new Label("● Agrupado");
-            statusBadge.setStyle(
-                "-fx-text-fill: " + colorToRgb(groupCluster.getColor()) + "; " +
-                "-fx-font-weight: bold; " +
-                "-fx-font-size: 11; " +
-                "-fx-font-family: " + FONT + ";"
-            );
-            statusRow.getChildren().add(statusBadge);
-        } else {
-            javafx.scene.control.CheckBox selectBox = new javafx.scene.control.CheckBox();
-            selectBox.setSelected(selectedCasesForBatch.contains(caso));
-            selectBox.setStyle("-fx-cursor: hand;");
-
-            Label statusBadge = new Label("⚪ No agrupado");
-            statusBadge.setStyle("-fx-text-fill: #94a3b8; -fx-font-size: 11; -fx-font-family: " + FONT + ";");
-
-            selectBox.selectedProperty().addListener((obs, oldVal, newVal) -> {
-                if (newVal) {
-                    selectedCasesForBatch.add(caso);
-                } else {
-                    selectedCasesForBatch.remove(caso);
-                }
-                updateBatchButtonState();
-            });
-
-            statusRow.getChildren().addAll(selectBox, statusBadge);
-
-            if (captureOnboardingTargets) {
-                if (onboardingDemoCaseFirst != null
-                        && caso.getNombre().equalsIgnoreCase(onboardingDemoCaseFirst.getNombre())) {
-                    onboardingVerTarget = detailsButton;
-                    onboardingCheckboxTarget = selectBox;
-                    detailsButton.getProperties().put("onboardingVer", Boolean.TRUE);
-                    selectBox.getProperties().put("onboardingCheckbox", Boolean.TRUE);
-                } else if (onboardingDemoCaseSecond != null
-                        && caso.getNombre().equalsIgnoreCase(onboardingDemoCaseSecond.getNombre())) {
-                    selectBox.getProperties().put("onboardingCheckbox2", Boolean.TRUE);
-                } else if (onboardingDemoCaseFirst == null) {
-                    onboardingDemoCaseFirst = caso;
-                    onboardingVerTarget = detailsButton;
-                    onboardingCheckboxTarget = selectBox;
-                    detailsButton.getProperties().put("onboardingVer", Boolean.TRUE);
-                    selectBox.getProperties().put("onboardingCheckbox", Boolean.TRUE);
-                } else if (onboardingDemoCaseSecond == null
-                        && !caso.getNombre().equalsIgnoreCase(onboardingDemoCaseFirst.getNombre())) {
-                    onboardingDemoCaseSecond = caso;
-                    selectBox.getProperties().put("onboardingCheckbox2", Boolean.TRUE);
-                }
-            }
+            Label groupBadge = new Label(groupCluster.getName());
+            groupBadge.setStyle("-fx-background-color: " + colorToRgb(groupCluster.getColor()) + "; -fx-text-fill: white; -fx-font-weight: bold; -fx-padding: 4 8 4 8; -fx-background-radius: 4;");
+            StackPane.setAlignment(groupBadge, Pos.TOP_LEFT);
+            imageArea.getChildren().add(groupBadge);
         }
 
-        HBox footer = new HBox(8, nameLabel, copyNameButton, detailsButton);
-        footer.setAlignment(Pos.CENTER_LEFT);
-        footer.setPadding(new Insets(9, 11, 9, 11));
-        footer.setStyle(
-            "-fx-border-color: #1a3a7a transparent transparent transparent; " +
-            "-fx-border-width: 1 0 0 0;"
-        );
-        HBox.setHgrow(nameLabel, Priority.ALWAYS);
+        VBox cardBody = new VBox(imageWithCheck, titleBox, footer);
+        cardBody.setStyle("-fx-background-color: #FFFFFF; -fx-background-radius: 0 8 8 8;");
+        
+        VBox fullCard = new VBox(tabContainer, cardBody);
+        fullCard.setPrefWidth(290);
+        fullCard.setMinWidth(290);
+        fullCard.setMaxWidth(290);
+        
+        String borderStyle = isSelected ? "-fx-border-color: #F1C40F; -fx-border-width: 4; -fx-border-radius: 8;" : "-fx-border-color: transparent; -fx-border-width: 4;";
+        fullCard.setStyle(borderStyle);
+        fullCard.setOnMouseClicked(e -> {
+            // Toggle selection if clicking the card body (not buttons)
+            if (!(e.getTarget() instanceof Button) && !(e.getTarget() instanceof FontIcon)) {
+                selectBox.setSelected(!selectBox.isSelected());
+            }
+        });
 
-        VBox card = new VBox(imageArea, statusRow, footer);
-        card.setPrefWidth(290);
-        card.setMinWidth(290);
-        card.setMaxWidth(290);
-
-        String normalStyle = isGrouped
-            ? buildGroupedCaseCardStyle(groupCluster.getColor(), false)
-            : buildDefaultCaseCardStyle(false);
-        String hoverStyle = isGrouped
-            ? buildGroupedCaseCardStyle(groupCluster.getColor(), true)
-            : buildDefaultCaseCardStyle(true);
-        card.setStyle(normalStyle);
-        card.setOnMouseEntered(e -> card.setStyle(hoverStyle));
-        card.setOnMouseExited(e -> card.setStyle(normalStyle));
-
-        StackPane cardWrapper = new StackPane(card);
+        StackPane cardWrapper = new StackPane(fullCard);
         cardWrapper.setPrefWidth(290);
         cardWrapper.setMinWidth(290);
         cardWrapper.setMaxWidth(290);
         cardWrapper.getProperties().put("caso", caso);
-
-        if (isGrouped) {
-            Label groupBadge = new Label(groupCluster.getName());
-            groupBadge.setMaxWidth(150);
-            groupBadge.setTextOverrun(OverrunStyle.ELLIPSIS);
-            String badgeTextColor = contrastingTextColor(groupCluster.getColor());
-            groupBadge.setStyle(
-                "-fx-background-color: " + colorToRgb(groupCluster.getColor()) + "; " +
-                "-fx-text-fill: " + badgeTextColor + "; " +
-                "-fx-font-size: 10; " +
-                "-fx-font-weight: bold; " +
-                "-fx-padding: 3 8 3 8; " +
-                "-fx-background-radius: 6; " +
-                "-fx-font-family: " + FONT + ";"
-            );
-            StackPane.setAlignment(groupBadge, Pos.TOP_RIGHT);
-            StackPane.setMargin(groupBadge, new Insets(6, 6, 0, 0));
-            cardWrapper.getChildren().add(groupBadge);
-        }
-
         return cardWrapper;
     }
 
@@ -1228,19 +1188,37 @@ public class CasesManagementBrownView {
 
     private void updateBatchButtonState() {
         int count = selectedCasesForBatch.size();
-        boolean hasExistingGroups = !PlayerViewBrown.getInstance(stage).getCurrentClusters().isEmpty();
 
-        batchGroupNewButton.setText("Crear nuevo grupo (" + count + ")");
-        batchGroupNewButton.setVisible(count >= 2);
-        batchGroupNewButton.setManaged(count >= 2);
-
-        batchGroupExistingButton.setText("Agregar a grupo (" + count + ")");
-        batchGroupExistingButton.setVisible(count >= 1 && hasExistingGroups);
-        batchGroupExistingButton.setManaged(count >= 1 && hasExistingGroups);
-
-        boolean showContainer = (count >= 2) || (count >= 1 && hasExistingGroups);
-        batchButtonsContainer.setVisible(showContainer);
-        batchButtonsContainer.setManaged(showContainer);
+        if (count > 0) {
+            batchGroupNewButton.setStyle(
+                "-fx-background-color: #F1C40F; " +
+                "-fx-background-radius: 6; " +
+                "-fx-padding: 10 20 10 20; " +
+                "-fx-text-fill: black; " +
+                "-fx-font-weight: bold; " +
+                "-fx-font-size: 14; " +
+                "-fx-font-family: " + FONT + "; " +
+                "-fx-cursor: hand;"
+            );
+            batchGroupNewButton.setDisable(false);
+            batchGroupExistingButton.setDisable(false);
+            batchButtonsContainer.setVisible(true);
+            batchButtonsContainer.setManaged(true);
+        } else {
+            batchGroupNewButton.setStyle(
+                "-fx-background-color: #64748B; " +
+                "-fx-background-radius: 6; " +
+                "-fx-padding: 10 20 10 20; " +
+                "-fx-text-fill: white; " +
+                "-fx-font-weight: bold; " +
+                "-fx-font-size: 14; " +
+                "-fx-font-family: " + FONT + ";"
+            );
+            batchGroupNewButton.setDisable(true);
+            batchGroupExistingButton.setDisable(true);
+            batchButtonsContainer.setVisible(false);
+            batchButtonsContainer.setManaged(false);
+        }
     }
 
     private void showBatchJustificationOverlay() {
@@ -1258,8 +1236,8 @@ public class CasesManagementBrownView {
         StackPane backdrop = new StackPane();
         backdrop.setStyle("-fx-background-color: rgba(4, 9, 26, 0.82);");
 
-        VBox dialog = new VBox(14);
-        dialog.setMaxWidth(460);
+        VBox dialog = new VBox(18);
+        dialog.setMaxWidth(600);
         dialog.setMaxHeight(Region.USE_PREF_SIZE);
         dialog.setPadding(new Insets(24));
         dialog.setStyle(
@@ -1272,7 +1250,7 @@ public class CasesManagementBrownView {
 
         Label titleLabel = new Label("Justificar Asociación Múltiple");
         titleLabel.setStyle(
-            "-fx-font-size: 15; " +
+            "-fx-font-size: 22; " +
             "-fx-font-weight: bold; " +
             "-fx-text-fill: #f0c96e; " +
             "-fx-font-family: " + FONT + ";"
@@ -1280,13 +1258,13 @@ public class CasesManagementBrownView {
 
         Label subtitleLabel = new Label("Se creará una relación en cadena para los casos seleccionados.");
         subtitleLabel.setStyle(
-            "-fx-font-size: 11; " +
+            "-fx-font-size: 14; " +
             "-fx-text-fill: #7ba3d8; " +
             "-fx-font-family: " + FONT + ";"
         );
 
         Label basisLabel = new Label("Asociar por:");
-        basisLabel.setStyle("-fx-text-fill: #d0e4ff; -fx-font-size: 11; -fx-font-family: " + FONT + ";");
+        basisLabel.setStyle("-fx-text-fill: #d0e4ff; -fx-font-size: 14; -fx-font-weight: bold; -fx-font-family: " + FONT + ";");
 
         javafx.scene.control.ComboBox<String> basisBox = new javafx.scene.control.ComboBox<>();
         basisBox.getItems().addAll("Modalidad", "Modus operandi", "Patrón", "Criterio de Conexidad", "Fenomeno criminal", "Otros");
@@ -1297,11 +1275,12 @@ public class CasesManagementBrownView {
             "-fx-border-color: #1a3a7a; " +
             "-fx-border-radius: 6; " +
             "-fx-background-radius: 6; " +
+            "-fx-font-size: 14; " +
             "-fx-text-fill: white;"
         );
 
         Label reasonLabel = new Label("Justificación:");
-        reasonLabel.setStyle("-fx-text-fill: #d0e4ff; -fx-font-size: 11; -fx-font-family: " + FONT + ";");
+        reasonLabel.setStyle("-fx-text-fill: #d0e4ff; -fx-font-size: 14; -fx-font-weight: bold; -fx-font-family: " + FONT + ";");
 
         javafx.scene.control.TextArea reasonField = new javafx.scene.control.TextArea();
         reasonField.setPromptText("Escribe los detalles de la asociación...");
@@ -1312,6 +1291,7 @@ public class CasesManagementBrownView {
             "-fx-text-fill: white; " +
             "-fx-border-color: #1a3a7a; " +
             "-fx-border-radius: 6; " +
+            "-fx-font-size: 14; " +
             "-fx-background-radius: 6;"
         );
 
@@ -1320,9 +1300,10 @@ public class CasesManagementBrownView {
             "-fx-background-color: #22c55e; " +
             "-fx-text-fill: white; " +
             "-fx-font-weight: bold; " +
+            "-fx-font-size: 14; " +
             "-fx-border-radius: 6; " +
             "-fx-background-radius: 6; " +
-            "-fx-padding: 6 16 6 16; " +
+            "-fx-padding: 10 20 10 20; " +
             "-fx-cursor: hand;"
         );
         confirmButton.setOnAction(e -> {
@@ -1353,9 +1334,11 @@ public class CasesManagementBrownView {
         cancelButton.setStyle(
             "-fx-background-color: #64748b; " +
             "-fx-text-fill: white; " +
+            "-fx-font-weight: bold; " +
+            "-fx-font-size: 14; " +
             "-fx-border-radius: 6; " +
             "-fx-background-radius: 6; " +
-            "-fx-padding: 6 16 6 16; " +
+            "-fx-padding: 10 20 10 20; " +
             "-fx-cursor: hand;"
         );
         cancelButton.setOnAction(e -> {
