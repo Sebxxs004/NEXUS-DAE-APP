@@ -2690,9 +2690,16 @@ public class PlayerView {
             String signature = groupName;
             GroupMeta meta = metadataBySignature.get(signature);
             if (meta == null) {
+                String colorHex = "#67e8f9";
+                if (groupName != null && !groupName.isBlank()) {
+                    String[] colors = {"#ef4444", "#3b82f6", "#10b981", "#f59e0b", "#8b5cf6", "#ec4899", "#14b8a6", "#f97316"};
+                    int idx = Math.abs(groupName.hashCode()) % colors.length;
+                    colorHex = colors[idx];
+                }
+                
                 meta = new GroupMeta(
                         groupName,
-                        Color.web("#FFFFFF"),
+                        Color.web(colorHex),
                         "Asociado por modalidad",
                         "Sin justificación registrada",
                         "",
@@ -3038,6 +3045,29 @@ public class PlayerView {
         public Color getColor() {
             return meta.color;
         }
+    }
+
+    
+    public List<GroupCluster> findGroupsForCase(Caso caso) {
+        if (caso == null) {
+            return java.util.Collections.emptyList();
+        }
+        CaseNode targetNode = null;
+        for (CaseNode node : nodes) {
+            if (node.getCaso().getNombre().equalsIgnoreCase(caso.getNombre())) {
+                targetNode = node;
+                break;
+            }
+        }
+        if (targetNode == null) return java.util.Collections.emptyList();
+        
+        List<GroupCluster> result = new ArrayList<>();
+        for (GroupCluster cluster : currentClusters) {
+            if (cluster.members.contains(targetNode)) {
+                result.add(cluster);
+            }
+        }
+        return result;
     }
 
     public GroupCluster findGroupForCase(Caso caso) {
@@ -3486,7 +3516,7 @@ public class PlayerView {
         return null;
     }
 
-    private static final class CaseNode extends StackPane {
+    public static final class CaseNode extends StackPane {
 
         private final Caso caso;
         private final String displayNumber;
@@ -3550,7 +3580,7 @@ public class PlayerView {
             return selected;
         }
 
-        private Caso getCaso() {
+        public Caso getCaso() {
             return caso;
         }
 

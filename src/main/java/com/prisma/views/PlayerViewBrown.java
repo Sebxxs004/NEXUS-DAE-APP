@@ -1353,6 +1353,12 @@ public class PlayerViewBrown {
         return playerView.isCaseGrouped(caso);
     }
 
+    
+    public java.util.List<PlayerView.GroupCluster> findGroupsForCase(com.prisma.models.Caso caso) {
+        if (playerView == null) return java.util.Collections.emptyList();
+        return playerView.findGroupsForCase(caso);
+    }
+
     public PlayerView.GroupCluster findGroupForCase(com.prisma.models.Caso caso) {
         if (playerView == null) {
             return null;

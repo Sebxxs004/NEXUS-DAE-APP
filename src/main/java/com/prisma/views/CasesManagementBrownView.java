@@ -354,11 +354,11 @@ public class CasesManagementBrownView {
 
         casesGrid = new TilePane();
         casesGrid.setHgap(14);
-        casesGrid.setVgap(14);
+        casesGrid.setVgap(24);
         casesGrid.setTileAlignment(Pos.TOP_LEFT);
         casesGrid.setPrefColumns(4);
-        casesGrid.setPrefTileWidth(290);
-        casesGrid.setPrefTileHeight(250);
+        casesGrid.setPrefTileWidth(225);
+        casesGrid.setPrefTileHeight(290);
         casesGrid.setStyle("-fx-background-color: transparent;");
 
         gridScroll = new ScrollPane(casesGrid);
@@ -467,10 +467,43 @@ public class CasesManagementBrownView {
             Label nameLbl = new Label(cluster.meta.name);
             nameLbl.setStyle("-fx-text-fill: #FFFFFF; -fx-font-weight: bold; -fx-font-size: 14px;");
             
+            javafx.scene.shape.Circle colorDot = new javafx.scene.shape.Circle(6, cluster.meta.color);
+            HBox titleBox = new HBox(8, colorDot, nameLbl);
+            titleBox.setAlignment(Pos.CENTER_LEFT);
+            
+            FontIcon arrowIcon = new FontIcon(org.kordamp.ikonli.fontawesome5.FontAwesomeSolid.CHEVRON_DOWN);
+            arrowIcon.setIconColor(Color.web("#808D9E"));
+            arrowIcon.setIconSize(12);
+            
+            Region spacer = new Region();
+            HBox.setHgrow(spacer, Priority.ALWAYS);
+            
+            HBox headerBox = new HBox(8, titleBox, spacer, arrowIcon);
+            headerBox.setAlignment(Pos.CENTER_LEFT);
+            headerBox.setStyle("-fx-cursor: hand;");
+            
             Label countLbl = new Label(cluster.members.size() + " casos");
             countLbl.setStyle("-fx-text-fill: #67E8F9; -fx-font-size: 12px;");
             
-            groupCard.getChildren().addAll(nameLbl, countLbl);
+            VBox casesList = new VBox(4);
+            casesList.setPadding(new Insets(6, 0, 0, 20));
+            casesList.setVisible(false);
+            casesList.setManaged(false);
+            
+            for (PlayerView.CaseNode node : cluster.members) {
+                Label caseLbl = new Label("• " + node.getCaso().getNombre());
+                caseLbl.setStyle("-fx-text-fill: #A0B0C0; -fx-font-size: 11px;");
+                casesList.getChildren().add(caseLbl);
+            }
+            
+            headerBox.setOnMouseClicked(e -> {
+                boolean isExpanded = casesList.isVisible();
+                casesList.setVisible(!isExpanded);
+                casesList.setManaged(!isExpanded);
+                arrowIcon.setIconCode(!isExpanded ? org.kordamp.ikonli.fontawesome5.FontAwesomeSolid.CHEVRON_UP : org.kordamp.ikonli.fontawesome5.FontAwesomeSolid.CHEVRON_DOWN);
+            });
+            
+            groupCard.getChildren().addAll(headerBox, countLbl, casesList);
             activeGroupsContainer.getChildren().add(groupCard);
         }
     }
@@ -530,17 +563,35 @@ public class CasesManagementBrownView {
 
     private StackPane buildCaseCard(Stage stage, Caso caso) {
         boolean isSelected = selectedCasesForBatch.contains(caso);
-        PlayerView.GroupCluster groupCluster = PlayerViewBrown.getInstance(stage).findGroupForCase(caso);
-        boolean isGrouped = groupCluster != null;
+        java.util.List<PlayerView.GroupCluster> clusters = PlayerViewBrown.getInstance(stage).findGroupsForCase(caso);
+        boolean isGrouped = !clusters.isEmpty();
 
         // Colors
-        String tabColor = isGrouped ? colorToRgb(groupCluster.getColor()) : "#084C8C";
+        String tabBgStyle = "-fx-background-color: #084C8C;";
+        if (isGrouped) {
+            if (clusters.size() == 1) {
+                tabBgStyle = "-fx-background-color: " + colorToRgb(clusters.get(0).getColor()) + ";";
+            } else {
+                StringBuilder sb = new StringBuilder("-fx-background-color: linear-gradient(to right, ");
+                int numColors = clusters.size();
+                for (int i = 0; i < numColors; i++) {
+                    String c = colorToRgb(clusters.get(i).getColor());
+                    double start = (double)i / numColors * 100;
+                    double end = (double)(i + 1) / numColors * 100;
+                    sb.append(c).append(" ").append(start).append("%, ");
+                    sb.append(c).append(" ").append(end).append("%");
+                    if (i < numColors - 1) sb.append(", ");
+                }
+                sb.append(");");
+                tabBgStyle = sb.toString();
+            }
+        }
         
         // Folder Tab
         Region folderTab = new Region();
         folderTab.setPrefHeight(20);
         folderTab.setMaxWidth(120);
-        folderTab.setStyle("-fx-background-color: " + tabColor + "; -fx-background-radius: 12 12 0 0;");
+        folderTab.setStyle(tabBgStyle + " -fx-background-radius: 12 12 0 0;");
         
         // Number badge on tab
         String formattedNum = String.format("%02d", com.prisma.data.CasoRepository.getCasos().indexOf(caso) + 1);
@@ -662,19 +713,23 @@ public class CasesManagementBrownView {
         // If grouped, show group name instead of standard footer or alongside it? 
         // Mockup keeps footer. Let's add group badge on top of image.
         if (isGrouped) {
-            Label groupBadge = new Label(groupCluster.getName());
-            groupBadge.setStyle("-fx-background-color: " + colorToRgb(groupCluster.getColor()) + "; -fx-text-fill: white; -fx-font-weight: bold; -fx-padding: 4 8 4 8; -fx-background-radius: 4;");
-            StackPane.setAlignment(groupBadge, Pos.TOP_LEFT);
-            imageArea.getChildren().add(groupBadge);
+            HBox badgesBox = new HBox(4);
+            for (PlayerView.GroupCluster cluster : clusters) {
+                Label groupBadge = new Label(cluster.getName());
+                groupBadge.setStyle("-fx-background-color: " + colorToRgb(cluster.getColor()) + "; -fx-text-fill: white; -fx-font-weight: bold; -fx-padding: 4 8 4 8; -fx-background-radius: 4;");
+                badgesBox.getChildren().add(groupBadge);
+            }
+            StackPane.setAlignment(badgesBox, Pos.TOP_LEFT);
+            imageArea.getChildren().add(badgesBox);
         }
 
         VBox cardBody = new VBox(imageWithCheck, titleBox, footer);
         cardBody.setStyle("-fx-background-color: #FFFFFF; -fx-background-radius: 0 8 8 8;");
         
         VBox fullCard = new VBox(tabContainer, cardBody);
-        fullCard.setPrefWidth(290);
-        fullCard.setMinWidth(290);
-        fullCard.setMaxWidth(290);
+        fullCard.setPrefWidth(225);
+        fullCard.setMinWidth(225);
+        fullCard.setMaxWidth(225);
         
         String borderStyle = isSelected ? "-fx-border-color: #F1C40F; -fx-border-width: 4; -fx-border-radius: 8;" : "-fx-border-color: transparent; -fx-border-width: 4;";
         fullCard.setStyle(borderStyle);
@@ -686,9 +741,9 @@ public class CasesManagementBrownView {
         });
 
         StackPane cardWrapper = new StackPane(fullCard);
-        cardWrapper.setPrefWidth(290);
-        cardWrapper.setMinWidth(290);
-        cardWrapper.setMaxWidth(290);
+        cardWrapper.setPrefWidth(225);
+        cardWrapper.setMinWidth(225);
+        cardWrapper.setMaxWidth(225);
         cardWrapper.getProperties().put("caso", caso);
         return cardWrapper;
     }
