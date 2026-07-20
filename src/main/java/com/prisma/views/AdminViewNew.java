@@ -299,10 +299,9 @@ if (PlayerViewBrown.onboardingMode) {
         // Disable UI interaction
         view.setMouseTransparent(true);
 
-        // Hide UI elements smoothly
+        // Hide UI elements smoothly but don't play it yet
         FadeTransition hideUi = new FadeTransition(Duration.millis(300), shellContainer);
         hideUi.setToValue(0.0);
-        hideUi.play();
 
         try {
             if (currentTransitionPlayer != null) {
@@ -325,7 +324,17 @@ if (PlayerViewBrown.onboardingMode) {
                 // We keep the media view visible or not depending on the action,
                 // but usually the action replaces the root scene anyway.
             });
-            player.play();
+            
+            player.setOnError(() -> {
+                System.err.println("Media player error: " + player.getError());
+                action.run();
+            });
+
+            player.setOnReady(() -> {
+                hideUi.play();
+                player.play();
+            });
+
         } catch (Exception e) {
             System.err.println("Error playing video transition: " + e.getMessage());
             action.run();

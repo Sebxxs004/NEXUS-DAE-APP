@@ -36,13 +36,15 @@ public class ResponsiveUtils {
         StackPane wrapper = new StackPane(scalingGroup);
         wrapper.setStyle("-fx-background-color: #04091A;"); // Dark background for letterbox areas
 
-        Scene scene = new Scene(wrapper);
+        // Initialize Scene with baseWidth and baseHeight to prevent 0x0 startup sizing
+        Scene scene = new Scene(wrapper, baseWidth, baseHeight);
 
         // Bind the scale of the group to the minimum ratio between the actual screen size and the base size
+        // We bind to scene size to avoid circular layout dependencies with wrapper
         Scale scale = new Scale();
         NumberBinding scaleBinding = Bindings.min(
-                wrapper.widthProperty().divide(baseWidth),
-                wrapper.heightProperty().divide(baseHeight)
+                scene.widthProperty().divide(baseWidth),
+                scene.heightProperty().divide(baseHeight)
         );
 
         scale.xProperty().bind(scaleBinding);
