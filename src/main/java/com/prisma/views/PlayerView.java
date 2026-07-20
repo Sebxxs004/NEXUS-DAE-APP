@@ -910,7 +910,7 @@ public class PlayerView {
                 boolean alreadyConnected = connections.stream()
                         .anyMatch(conn -> (conn.from == from && conn.to == to) || (conn.from == to && conn.to == from));
                 if (!alreadyConnected) {
-                    connections.add(new Connection(from, to, connectionSummary));
+                    connections.add(new Connection(from, to, connectionSummary, "Grupo Legado"));
                 }
             }
 
@@ -942,7 +942,7 @@ public class PlayerView {
         String basis = connectionBasisBox.getValue();
         String connectionSummary = "Asociado por: " + basis + " | Justificación: " + trimmed;
 
-        connections.add(new Connection(selectedNode, pendingConnectionTarget, connectionSummary));
+        connections.add(new Connection(selectedNode, pendingConnectionTarget, connectionSummary, "Grupo Legado"));
         refreshConnections();
         refreshGroups();
         persistInvestigationSnapshot();
@@ -2196,7 +2196,8 @@ public class PlayerView {
             json.append("    {\n");
             json.append("      \"from\": \"").append(escapeJson(connection.from.getCaso().getNombre())).append("\",\n");
             json.append("      \"to\": \"").append(escapeJson(connection.to.getCaso().getNombre())).append("\",\n");
-            json.append("      \"detail\": \"").append(escapeJson(connection.reason)).append("\"\n");
+            json.append("      \"detail\": \"").append(escapeJson(connection.reason)).append("\",\n");
+            json.append("      \"groupId\": \"").append(escapeJson(connection.groupId != null ? connection.groupId : "Grupo Legado")).append("\"\n");
             json.append("    }");
             if (i < connections.size() - 1) {
                 json.append(",");
@@ -2652,10 +2653,7 @@ public class PlayerView {
         return "rgb(" + red + "," + green + "," + blue + ")";
     }
 
-    private List<GroupCluster> detectClusters() {
-        List<GroupCluster> clusters = new ArrayList<>();
-        Set<CaseNode> visited = new HashSet<>();
-        
+    private int getMaxSequence() {
         int maxSequence = 0;
         for (GroupMeta m : metadataBySignature.values()) {
             if (m.name != null && m.name.startsWith("Grupo ")) {
@@ -2665,52 +2663,45 @@ public class PlayerView {
                 } catch (Exception e) {}
             }
         }
-        int sequence = maxSequence + 1;
+        return maxSequence;
+    }
 
-        for (CaseNode node : nodes) {
-            if (visited.contains(node)) {
-                continue;
-            }
+    private List<GroupCluster> detectClusters() {
+        List<GroupCluster> clusters = new ArrayList<>();
+        
+        java.util.Map<String, java.util.List<Connection>> connsByGroup = connections.stream()
+            .filter(c -> c.groupId != null && !c.groupId.isEmpty())
+            .collect(Collectors.groupingBy(c -> c.groupId));
 
+        for (java.util.Map.Entry<String, java.util.List<Connection>> entry : connsByGroup.entrySet()) {
+            String groupName = entry.getKey();
             Set<CaseNode> component = new HashSet<>();
-            collectGroup(node, component);
-            visited.addAll(component);
-
-            if (component.size() < 2) {
-                continue;
+            for (Connection c : entry.getValue()) {
+                component.add(c.from);
+                component.add(c.to);
             }
-
+            
+            if (component.size() < 2) continue;
+            
             List<CaseNode> members = component.stream()
                     .sorted(Comparator.comparing(caseNode -> caseNode.getCaso().getNombre()))
                     .collect(Collectors.toList());
-            String signature = createSignature(members);
-            
+                    
+            String signature = groupName;
             GroupMeta meta = metadataBySignature.get(signature);
             if (meta == null) {
-                // Signature changed (e.g. a case was added/removed).
-                // Try to inherit metadata from the old signature that shares the most members.
-                meta = findBestMatchingMeta(members);
-                if (meta != null) {
-                    // Migrate the old metadata to the new signature
-                    metadataBySignature.put(signature, meta);
-                } else {
-                    String defaultGroupName = "Grupo " + sequence;
-                    meta = new GroupMeta(
-                            defaultGroupName,
-                            defaultGroupColor(signature),
-                            "Asociado por modalidad",
-                            "Sin justificación registrada",
-                            "",
-                            false);
-                    metadataBySignature.put(signature, meta);
-                    sequence++;
-                }
+                meta = new GroupMeta(
+                        groupName,
+                        Color.web("#FFFFFF"),
+                        "Asociado por modalidad",
+                        "Sin justificación registrada",
+                        "",
+                        false);
+                metadataBySignature.put(signature, meta);
             }
-
             clusters.add(new GroupCluster(signature, members, meta));
         }
 
-        // Cleanup stale signatures that no longer match any cluster
         Set<String> activeSignatures = clusters.stream()
                 .map(c -> c.signature)
                 .collect(Collectors.toSet());
@@ -2754,19 +2745,6 @@ public class PlayerView {
         return null;
     }
 
-    private void collectGroup(CaseNode node, Set<CaseNode> group) {
-        if (!group.add(node)) {
-            return;
-        }
-
-        for (Connection connection : connections) {
-            if (connection.from == node) {
-                collectGroup(connection.to, group);
-            } else if (connection.to == node) {
-                collectGroup(connection.from, group);
-            }
-        }
-    }
 
     private void updateGroupOverlays() {
         // Limpiar overlays obsoletos
@@ -2950,14 +2928,23 @@ public class PlayerView {
         private final CaseNode from;
         private final CaseNode to;
         private final String reason;
+        private final String groupId;
         private final Line line;
 
-        private Connection(CaseNode from, CaseNode to, String reason) {
+        private Connection(CaseNode from, CaseNode to, String reason, String groupId) {
             this.from = from;
             this.to = to;
             this.reason = reason;
+            this.groupId = groupId;
             this.line = new Line();
-            this.line.setStroke(Color.web("#67e8f9", 0.78));
+            
+            String colorHex = "#67e8f9"; // default
+            if (groupId != null && !groupId.isBlank()) {
+                String[] colors = {"#ef4444", "#3b82f6", "#10b981", "#f59e0b", "#8b5cf6", "#ec4899", "#14b8a6", "#f97316"};
+                int idx = Math.abs(groupId.hashCode()) % colors.length;
+                colorHex = colors[idx];
+            }
+            this.line.setStroke(Color.web(colorHex, 0.78));
             this.line.setStrokeWidth(2.2);
             this.line.setMouseTransparent(true);
         }
@@ -2996,12 +2983,12 @@ public class PlayerView {
                     "7. Otro.",
                     "¿Cuál es la otra decisión y su fundamento?"));
 
-    private static final class GroupMeta {
+    public static final class GroupMeta {
 
-        private String name;
-        private Color color;
+        public String name;
+        public Color color;
         private String mode;
-        private String reason;
+        public String reason;
         private String decisionDetail;
         private boolean finalized;
 
@@ -3126,17 +3113,30 @@ public class PlayerView {
             boolean alreadyConnected = connections.stream()
                     .anyMatch(conn -> (conn.from == from && conn.to == to) || (conn.from == to && conn.to == from));
             if (!alreadyConnected) {
-                connections.add(new Connection(from, to, connectionSummary));
+                connections.add(new Connection(from, to, connectionSummary, "Grupo Legado"));
             }
         }
 
         // Connect the first of the selected cases to the target group member
         CaseNode firstNewNode = targetNodes.get(0);
+        
+        String targetGroupSignature = null;
+        for (GroupCluster cluster : currentClusters) {
+            if (cluster.members.contains(targetMember)) {
+                targetGroupSignature = cluster.signature;
+                break;
+            }
+        }
+        if (targetGroupSignature == null) {
+            targetGroupSignature = "Grupo Legado";
+        }
+        String finalTargetGroupSignature = targetGroupSignature;
+        
         boolean alreadyConnected = connections.stream()
-                .anyMatch(conn -> (conn.from == firstNewNode && conn.to == targetMember)
-                        || (conn.from == targetMember && conn.to == firstNewNode));
+                .anyMatch(conn -> ((conn.from == firstNewNode && conn.to == targetMember)
+                        || (conn.from == targetMember && conn.to == firstNewNode)) && finalTargetGroupSignature.equals(conn.groupId));
         if (!alreadyConnected) {
-            connections.add(new Connection(firstNewNode, targetMember, connectionSummary));
+            connections.add(new Connection(firstNewNode, targetMember, connectionSummary, finalTargetGroupSignature));
         }
 
         refreshConnections();
@@ -3174,10 +3174,11 @@ public class PlayerView {
             CaseNode from = targetNodes.get(i);
             CaseNode to = targetNodes.get(i + 1);
 
+            String actualGroupId = customGroupName != null && !customGroupName.isBlank() ? customGroupName : "Grupo " + (getMaxSequence() + 1);
             boolean alreadyConnected = connections.stream()
-                    .anyMatch(conn -> (conn.from == from && conn.to == to) || (conn.from == to && conn.to == from));
+                    .anyMatch(conn -> ((conn.from == from && conn.to == to) || (conn.from == to && conn.to == from)) && actualGroupId.equals(conn.groupId));
             if (!alreadyConnected) {
-                connections.add(new Connection(from, to, connectionSummary));
+                connections.add(new Connection(from, to, connectionSummary, actualGroupId));
             }
         }
 
@@ -3259,15 +3260,16 @@ public class PlayerView {
                         String from = extractJsonValue(obj, "from");
                         String to = extractJsonValue(obj, "to");
                         String detail = extractJsonValue(obj, "detail");
+                        String rawGroupId = extractJsonValue(obj, "groupId");
+                        String finalGroupId = rawGroupId.isEmpty() ? "Grupo Legado" : rawGroupId;
                         if (!from.isEmpty() && !to.isEmpty()) {
                             CaseNode nodeFrom = findNodeByName(from);
                             CaseNode nodeTo = findNodeByName(to);
                             if (nodeFrom != null && nodeTo != null) {
                                 boolean alreadyConnected = connections.stream()
-                                        .anyMatch(c -> (c.from == nodeFrom && c.to == nodeTo)
-                                                || (c.from == nodeTo && c.to == nodeFrom));
+                                        .anyMatch(c -> ((c.from == nodeFrom && c.to == nodeTo) || (c.from == nodeTo && c.to == nodeFrom)) && finalGroupId.equals(c.groupId));
                                 if (!alreadyConnected) {
-                                    connections.add(new Connection(nodeFrom, nodeTo, detail));
+                                    connections.add(new Connection(nodeFrom, nodeTo, detail, finalGroupId));
                                 }
                             }
                         }
