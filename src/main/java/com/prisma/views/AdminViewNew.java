@@ -51,6 +51,7 @@ public class AdminViewNew {
     private final Stage stage;
     private final Label timerLabel;
     private final HBox timerBadge;
+    private Label countdownLabel;
     private final Timeline timerTimeline;
     private MediaView mediaView;
     private BorderPane shellContainer;
@@ -120,11 +121,11 @@ public class AdminViewNew {
         timerLabel.setStyle(
             "-fx-text-fill: #ffffff; " +
             "-fx-font-weight: bold; " +
-            "-fx-font-size: 16; " +
+            "-fx-font-size: 38; " +
             "-fx-font-family: 'Consolas', 'Segoe UI', monospace;"
         );
 
-        Circle timerDot = new Circle(3.5, Color.web("#ffffff"));
+        javafx.scene.shape.Circle timerDot = new javafx.scene.shape.Circle(4.5, javafx.scene.paint.Color.web("#ffffff"));
         FadeTransition dotPulse = new FadeTransition(Duration.seconds(1), timerDot);
         dotPulse.setFromValue(1.0);
         dotPulse.setToValue(0.3);
@@ -132,19 +133,28 @@ public class AdminViewNew {
         dotPulse.setCycleCount(Animation.INDEFINITE);
         dotPulse.play();
 
-        Label timerPrefix = new Label("TIEMPO");
+        Label timerPrefix = new Label("TIEMPO RESTANTE");
         timerPrefix.setStyle(
             "-fx-text-fill: rgba(255,255,255,0.75); " +
             "-fx-font-weight: bold; " +
-            "-fx-font-size: 11; " +
-            "-fx-letter-spacing: 1px; " +
+            "-fx-font-size: 16; " +
+            "-fx-letter-spacing: 2px; " +
             "-fx-font-family: " + FONT + ";"
         );
 
-        timerBadge = new HBox(8, timerDot, timerPrefix, timerLabel);
+        timerBadge = new HBox(12, timerDot, timerPrefix, timerLabel);
         timerBadge.setAlignment(Pos.CENTER);
-        timerBadge.setPadding(new Insets(8, 18, 8, 18));
+        timerBadge.setPadding(new Insets(10, 32, 10, 32));
+        timerBadge.setMaxWidth(Region.USE_PREF_SIZE);
         applyNormalTimerStyle();
+        
+        countdownLabel = new Label("PRÓXIMO EVENTO EN: --:--");
+        countdownLabel.setStyle(
+            "-fx-text-fill: #f59e0b; " +
+            "-fx-font-weight: bold; " +
+            "-fx-font-size: 15; " +
+            "-fx-font-family: 'Consolas', 'Segoe UI', monospace;"
+        );
 
         HBox topBar = buildTopBar();
         VBox centerArea = buildCenterArea();
@@ -226,7 +236,7 @@ public class AdminViewNew {
         timerTimeline.stop();
         DistractionAlertManager.stopMonitoring();
         PlayerViewBrown.clearActiveInstance();
-        Scene scene = new Scene(new LoginView(stage).getView(), 1500, 900);
+        Scene scene = com.prisma.ui.ResponsiveUtils.createResponsiveScene(new LoginView(stage).getView(), 1500, 900);
         Theme.apply(scene);
 
                 javafx.scene.Scene currentScene = stage.getScene();
@@ -243,7 +253,7 @@ public class AdminViewNew {
 
     private void openCaseManagement() {
         CasesManagementBrownView casesView = new CasesManagementBrownView(stage);
-        Scene scene = new Scene(casesView.getView(), 1500, 900);
+        Scene scene = com.prisma.ui.ResponsiveUtils.createResponsiveScene(casesView.getView(), 1500, 900);
         casesView.applyTheme(scene);
 
                 javafx.scene.Scene currentScene = stage.getScene();
@@ -265,7 +275,7 @@ public class AdminViewNew {
         if (view.getScene() != null) {
             view.getScene().setRoot(new javafx.scene.layout.Pane());
         }
-        Scene scene = new Scene(view, 1500, 900);
+        Scene scene = com.prisma.ui.ResponsiveUtils.createResponsiveScene(view, 1500, 900);
         playerView.applyTheme(scene);
 
                 javafx.scene.Scene currentScene = stage.getScene();
@@ -283,6 +293,8 @@ if (PlayerViewBrown.onboardingMode) {
         }
     }
 
+    private MediaPlayer currentTransitionPlayer = null;
+
     private void playTransitionAndGo(String videoFilename, Runnable action) {
         // Disable UI interaction
         view.setMouseTransparent(true);
@@ -293,15 +305,25 @@ if (PlayerViewBrown.onboardingMode) {
         hideUi.play();
 
         try {
+            if (currentTransitionPlayer != null) {
+                currentTransitionPlayer.stop();
+                currentTransitionPlayer.dispose();
+                currentTransitionPlayer = null;
+            }
+
             String videoUrl = getClass().getResource("/styles/assets/videos/" + videoFilename).toExternalForm();
             Media media = new Media(videoUrl);
             MediaPlayer player = new MediaPlayer(media);
+            currentTransitionPlayer = player;
+            
             mediaView.setMediaPlayer(player);
             mediaView.setVisible(true);
             
             player.setOnEndOfMedia(() -> {
                 action.run();
                 view.setMouseTransparent(false);
+                // We keep the media view visible or not depending on the action,
+                // but usually the action replaces the root scene anyway.
             });
             player.play();
         } catch (Exception e) {
@@ -355,7 +377,7 @@ if (PlayerViewBrown.onboardingMode) {
         Region spacer = new Region();
         HBox.setHgrow(spacer, Priority.ALWAYS);
 
-        HBox topBar = new HBox(12, backButton, spacer, timerBadge);
+        HBox topBar = new HBox(12, backButton, spacer);
         topBar.setAlignment(Pos.CENTER_LEFT);
         topBar.setPadding(new Insets(14, 20, 14, 20));
         topBar.setMinHeight(56);
@@ -368,15 +390,12 @@ if (PlayerViewBrown.onboardingMode) {
     private VBox buildCenterArea() {
         Label welcomeTitle = new Label("Bienvenido a tu Despacho");
         welcomeTitle.setStyle(
-            "-fx-text-fill: #f8fafc; " +
+            "-fx-text-fill: #ffffff; " +
             "-fx-font-weight: bold; " +
-            "-fx-font-size: 28; " +
+            "-fx-font-size: 26; " +
+            "-fx-letter-spacing: 1px; " +
             "-fx-font-family: " + FONT + ";"
         );
-        DropShadow welcomeShadow = new DropShadow();
-        welcomeShadow.setRadius(14);
-        welcomeShadow.setColor(Color.color(0, 0, 0, 0.70));
-        welcomeTitle.setEffect(welcomeShadow);
         VBox.setMargin(welcomeTitle, new Insets(0, 0, 18, 0));
 
         Image logoImage = new Image(getClass().getResourceAsStream("/styles/assets/NEXUS-DAE.png"));
@@ -411,20 +430,79 @@ if (PlayerViewBrown.onboardingMode) {
         logoBlock.setAlignment(Pos.CENTER);
         VBox.setMargin(logoBlock, new Insets(0, 0, 14, 0));
 
-        HBox statusBar = new HBox(10,
-            makeStatusPill(FontAwesomeSolid.CLOCK, "Jornada: ", InvestigationClock.getDuration().toHours() + " horas"),
-            makeStatusPill(FontAwesomeSolid.COPY, "Casos activos: ", String.valueOf(CasoRepository.getCasos().size())),
-            makeStatusPill(FontAwesomeSolid.USERS, "Equipo: ", formatTeamLabel())
+        // Create Glass Cards for Stats
+        HBox statsBar = new HBox(20,
+            makeGlassCard(FontAwesomeSolid.CLOCK, "Jornada", InvestigationClock.getDuration().toHours() + " horas"),
+            makeGlassCard(FontAwesomeSolid.COPY, "Casos activos", String.valueOf(CasoRepository.getCasos().size())),
+            makeGlassCard(FontAwesomeSolid.USERS, "Equipo", formatTeamLabel())
         );
-        statusBar.setAlignment(Pos.CENTER);
-        VBox.setMargin(statusBar, new Insets(14, 0, 0, 0));
+        statsBar.setAlignment(Pos.CENTER);
+        VBox.setMargin(statsBar, new Insets(20, 0, 0, 0));
 
-        VBox centerArea = new VBox(0, welcomeTitle, logoBlock, statusBar);
+        // Group the timer elements together
+        VBox timerContainer = new VBox(8, timerBadge, countdownLabel);
+        timerContainer.setAlignment(Pos.CENTER);
+        VBox.setMargin(timerContainer, new Insets(0, 0, 25, 0));
+
+        VBox centerArea = new VBox(0, timerContainer, welcomeTitle, logoBlock, statsBar);
         centerArea.setAlignment(Pos.CENTER);
         centerArea.setPadding(new Insets(0, 20, 0, 20));
         centerArea.setMaxSize(Double.MAX_VALUE, Double.MAX_VALUE);
         centerArea.setStyle("-fx-background-color: transparent;");
         return centerArea;
+    }
+
+    private VBox makeGlassCard(FontAwesomeSolid iconCode, String titleText, String valueText) {
+        FontIcon icon = new FontIcon(iconCode);
+        icon.setIconSize(28);
+        icon.setIconColor(Color.web("#fbbf24")); // Amber/Gold color
+
+        Label title = new Label(titleText.toUpperCase());
+        title.setStyle(
+            "-fx-text-fill: rgba(255,255,255,0.60); " +
+            "-fx-font-weight: bold; " +
+            "-fx-font-size: 11; " +
+            "-fx-letter-spacing: 1px; " +
+            "-fx-font-family: " + FONT + ";"
+        );
+
+        Label value = new Label(valueText);
+        value.setStyle(
+            "-fx-text-fill: #ffffff; " +
+            "-fx-font-weight: bold; " +
+            "-fx-font-size: 20; " +
+            "-fx-font-family: " + FONT + ";"
+        );
+
+        VBox card = new VBox(8, icon, value, title);
+        card.setAlignment(Pos.CENTER);
+        card.setPadding(new Insets(16, 24, 16, 24));
+        card.setMinWidth(160);
+        card.setStyle(
+            "-fx-background-color: rgba(255, 255, 255, 0.05); " +
+            "-fx-background-radius: 12; " +
+            "-fx-border-color: rgba(255, 255, 255, 0.15); " +
+            "-fx-border-radius: 12; " +
+            "-fx-border-width: 1;"
+        );
+        
+        // Add subtle hover effect
+        card.setOnMouseEntered(e -> card.setStyle(
+            "-fx-background-color: rgba(255, 255, 255, 0.09); " +
+            "-fx-background-radius: 12; " +
+            "-fx-border-color: rgba(255, 255, 255, 0.25); " +
+            "-fx-border-radius: 12; " +
+            "-fx-border-width: 1;"
+        ));
+        card.setOnMouseExited(e -> card.setStyle(
+            "-fx-background-color: rgba(255, 255, 255, 0.05); " +
+            "-fx-background-radius: 12; " +
+            "-fx-border-color: rgba(255, 255, 255, 0.15); " +
+            "-fx-border-radius: 12; " +
+            "-fx-border-width: 1;"
+        ));
+        
+        return card;
     }
 
     private HBox buildActionBar() {
@@ -621,13 +699,25 @@ if (PlayerViewBrown.onboardingMode) {
         } else {
             applyNormalTimerStyle();
         }
+        
+        if (countdownLabel != null) {
+            long secondsToNext = DistractionAlertManager.getSecondsToNextEvaluation();
+            if (secondsToNext > 0) {
+                long m = secondsToNext / 60;
+                long s = secondsToNext % 60;
+                countdownLabel.setText(String.format("PRÓXIMO EVENTO EN: %02d:%02d", m, s));
+            } else if (secondsToNext == 0) {
+                countdownLabel.setText("EVALUANDO EVENTO...");
+            } else {
+                countdownLabel.setText("EVENTOS PAUSADOS");
+            }
+        }
     }
-
     private void applyNormalTimerStyle() {
         timerBadge.setStyle(
-            "-fx-background-color: rgba(220,38,38,0.85); " +
+            "-fx-background-color: rgba(20,24,36,0.65); " +
             "-fx-background-radius: 999; " +
-            "-fx-border-color: rgba(255,100,100,0.50); " +
+            "-fx-border-color: rgba(255,255,255,0.15); " +
             "-fx-border-radius: 999; " +
             "-fx-border-width: 1.5;"
         );
@@ -635,9 +725,9 @@ if (PlayerViewBrown.onboardingMode) {
 
     private void applyCriticalTimerStyle() {
         timerBadge.setStyle(
-            "-fx-background-color: rgba(185,28,28,0.95); " +
+            "-fx-background-color: rgba(220,38,38,0.25); " +
             "-fx-background-radius: 999; " +
-            "-fx-border-color: rgba(255,100,100,0.50); " +
+            "-fx-border-color: rgba(239,68,68,0.85); " +
             "-fx-border-radius: 999; " +
             "-fx-border-width: 1.5;"
         );

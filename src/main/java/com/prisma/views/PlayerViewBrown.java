@@ -182,7 +182,7 @@ public class PlayerViewBrown {
         Button volverButton = makeSecondaryButton("Volver");
         volverButton.setOnAction(e -> {
             AdminViewNew adminView = new AdminViewNew(stage);
-            Scene scene = new Scene(adminView.getView(), 1500, 900);
+            Scene scene = com.prisma.ui.ResponsiveUtils.createResponsiveScene(adminView.getView(), 1500, 900);
             adminView.applyTheme(scene);
 
             javafx.scene.Scene currentScene = stage.getScene();
@@ -1374,11 +1374,11 @@ public class PlayerViewBrown {
         playerView.addCasesToGroup(casesToAdd, targetGroup, basis, detail, reason);
     }
 
-    public void createBatchConnections(List<com.prisma.models.Caso> casos, String basis, String detail, String reason) {
+    public void createBatchConnections(List<com.prisma.models.Caso> casos, String basis, String detail, String reason, String customGroupName) {
         if (playerView == null) {
             return;
         }
-        playerView.createBatchConnections(casos, basis, detail, reason);
+        playerView.createBatchConnections(casos, basis, detail, reason, customGroupName);
     }
 
     public void removeConnectionsForCases(List<com.prisma.models.Caso> casos) {
@@ -1683,7 +1683,7 @@ public class PlayerViewBrown {
 
         // Return to Procesos del Despacho
         CasesManagementBrownView casesView = new CasesManagementBrownView(stage);
-        Scene scene = new Scene(casesView.getView(), 1500, 900);
+        Scene scene = com.prisma.ui.ResponsiveUtils.createResponsiveScene(casesView.getView(), 1500, 900);
         casesView.applyTheme(scene);
 
                 javafx.scene.Scene currentScene = stage.getScene();

@@ -270,7 +270,7 @@ public class PlayerView {
             DistractionAlertManager.stopMonitoring();
             PlayerViewBrown.clearActiveInstance();
             LoginView loginView = new LoginView(stage);
-            Scene scene = new Scene(loginView.getView(), 980, 680);
+            Scene scene = com.prisma.ui.ResponsiveUtils.createResponsiveScene(loginView.getView(), 1500, 900);
             Theme.apply(scene);
 
             javafx.scene.Scene currentScene = stage.getScene();
@@ -2655,7 +2655,17 @@ public class PlayerView {
     private List<GroupCluster> detectClusters() {
         List<GroupCluster> clusters = new ArrayList<>();
         Set<CaseNode> visited = new HashSet<>();
-        int sequence = 1;
+        
+        int maxSequence = 0;
+        for (GroupMeta m : metadataBySignature.values()) {
+            if (m.name != null && m.name.startsWith("Grupo ")) {
+                try {
+                    int num = Integer.parseInt(m.name.substring(6).trim());
+                    if (num > maxSequence) maxSequence = num;
+                } catch (Exception e) {}
+            }
+        }
+        int sequence = maxSequence + 1;
 
         for (CaseNode node : nodes) {
             if (visited.contains(node)) {
@@ -2674,7 +2684,7 @@ public class PlayerView {
                     .sorted(Comparator.comparing(caseNode -> caseNode.getCaso().getNombre()))
                     .collect(Collectors.toList());
             String signature = createSignature(members);
-            String defaultGroupName = "Grupo " + sequence;
+            
             GroupMeta meta = metadataBySignature.get(signature);
             if (meta == null) {
                 // Signature changed (e.g. a case was added/removed).
@@ -2684,6 +2694,7 @@ public class PlayerView {
                     // Migrate the old metadata to the new signature
                     metadataBySignature.put(signature, meta);
                 } else {
+                    String defaultGroupName = "Grupo " + sequence;
                     meta = new GroupMeta(
                             defaultGroupName,
                             defaultGroupColor(signature),
@@ -2692,11 +2703,11 @@ public class PlayerView {
                             "",
                             false);
                     metadataBySignature.put(signature, meta);
+                    sequence++;
                 }
             }
 
             clusters.add(new GroupCluster(signature, members, meta));
-            sequence++;
         }
 
         // Cleanup stale signatures that no longer match any cluster
@@ -3133,7 +3144,7 @@ public class PlayerView {
         persistInvestigationSnapshot();
     }
 
-    public void createBatchConnections(List<Caso> casos, String basis, String detail, String reason) {
+    public void createBatchConnections(List<Caso> casos, String basis, String detail, String reason, String customGroupName) {
         if (casos == null || casos.size() < 2 || investigationFinished) {
             return;
         }
@@ -3171,6 +3182,24 @@ public class PlayerView {
         }
 
         refreshConnections();
+
+        if (customGroupName != null && !customGroupName.isBlank()) {
+            List<GroupCluster> clusters = detectClusters();
+            for (GroupCluster gc : clusters) {
+                if (gc.members.contains(targetNodes.get(0))) {
+                    GroupMeta oldMeta = gc.meta;
+                    if (oldMeta != null) {
+                        GroupMeta newMeta = new GroupMeta(
+                                customGroupName, oldMeta.color, oldMeta.mode, oldMeta.reason,
+                                oldMeta.decisionDetail, oldMeta.finalized
+                        );
+                        metadataBySignature.put(gc.signature, newMeta);
+                    }
+                    break;
+                }
+            }
+        }
+
         refreshGroups();
         persistInvestigationSnapshot();
     }

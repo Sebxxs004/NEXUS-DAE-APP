@@ -271,7 +271,7 @@ public class LoginView {
 
     private void openNexus() {
         AdminViewNew adminViewNew = new AdminViewNew(stage);
-        Scene scene = new Scene(adminViewNew.getView(), 1500, 900);
+        Scene scene = com.prisma.ui.ResponsiveUtils.createResponsiveScene(adminViewNew.getView(), 1500, 900);
         Theme.apply(scene);
 
                 javafx.scene.Scene currentScene = stage.getScene();
@@ -288,7 +288,7 @@ public class LoginView {
 
     private void openInstructions() {
         InstructionsView instructionsView = new InstructionsView(stage);
-        Scene scene = new Scene(instructionsView.getView(), 1500, 900);
+        Scene scene = com.prisma.ui.ResponsiveUtils.createResponsiveScene(instructionsView.getView(), 1500, 900);
         Theme.apply(scene);
 
                 javafx.scene.Scene currentScene = stage.getScene();
@@ -313,7 +313,7 @@ public class LoginView {
 
     public void goBackToLogin() {
         LoginView loginView = new LoginView(stage);
-        Scene scene = new Scene(loginView.getView(), 1500, 900);
+        Scene scene = com.prisma.ui.ResponsiveUtils.createResponsiveScene(loginView.getView(), 1500, 900);
         applyTheme(scene);
 
                 javafx.scene.Scene currentScene = stage.getScene();

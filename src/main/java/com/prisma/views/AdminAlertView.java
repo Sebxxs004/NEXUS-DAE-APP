@@ -66,7 +66,7 @@ public class AdminAlertView {
         btnBack.setOnAction(e -> {
             DistractionAlertManager.stopMonitoring();
             LoginView loginView = new LoginView(stage);
-            Scene scene = new Scene(loginView.getView(), 980, 680);
+            Scene scene = com.prisma.ui.ResponsiveUtils.createResponsiveScene(loginView.getView(), 1500, 900);
             Theme.apply(scene);
 
             javafx.scene.Scene currentScene = stage.getScene();

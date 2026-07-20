@@ -652,7 +652,7 @@ public class InstructionsView {
         if (!InvestigationTeamContext.ensureConfigured(stage)) {
             return;
         }
-        Scene scene = new Scene(new AdminViewNew(stage).getView(), 1500, 900);
+        Scene scene = com.prisma.ui.ResponsiveUtils.createResponsiveScene(new AdminViewNew(stage).getView(), 1500, 900);
         Theme.apply(scene);
 
                 javafx.scene.Scene currentScene = stage.getScene();
@@ -669,7 +669,7 @@ public class InstructionsView {
 
     private void goBackToLogin() {
         LoginView loginView = new LoginView(stage);
-        Scene scene = new Scene(loginView.getView(), 1500, 900);
+        Scene scene = com.prisma.ui.ResponsiveUtils.createResponsiveScene(loginView.getView(), 1500, 900);
         Theme.apply(scene);
 
                 javafx.scene.Scene currentScene = stage.getScene();

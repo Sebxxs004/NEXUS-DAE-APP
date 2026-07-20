@@ -1387,4 +1387,15 @@ public final class DistractionAlertManager {
             javafx.application.Platform.runLater(runnable);
         }
     }
+
+    public static long getSecondsToNextEvaluation() {
+        if (!monitoringStarted || nextEvaluationAt == null || alertActive || exhausted) {
+            return -1;
+        }
+        java.time.Instant now = java.time.Instant.now();
+        if (now.isAfter(nextEvaluationAt)) {
+            return 0;
+        }
+        return java.time.Duration.between(now, nextEvaluationAt).getSeconds();
+    }
 }

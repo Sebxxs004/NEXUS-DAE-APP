@@ -18,7 +18,7 @@ public class App extends Application {
         silentCleanupDesktopZip();
 
         LoginView loginView = new LoginView(primaryStage);
-        Scene scene = new Scene(loginView.getView(), 980, 680);
+        Scene scene = com.prisma.ui.ResponsiveUtils.createResponsiveScene(loginView.getView(), 1500, 900);
         Theme.apply(scene);
         primaryStage.setTitle("NEXUS DAE");
         primaryStage.setScene(scene);

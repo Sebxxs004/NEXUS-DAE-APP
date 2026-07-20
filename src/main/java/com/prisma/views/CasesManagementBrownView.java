@@ -91,6 +91,7 @@ public class CasesManagementBrownView {
     private final java.util.Set<Caso> selectedCasesForBatch = new java.util.HashSet<>();
     private HBox batchButtonsContainer;
     private Button batchGroupNewButton;
+    private Button batchAddToGroupButton;
     private Button batchGroupExistingButton;
     private StackPane batchJustificationOverlay;
     private StackPane addToGroupOverlay;
@@ -204,7 +205,7 @@ public class CasesManagementBrownView {
         backButton.setOnMouseExited(e -> backButton.setStyle(backNormal));
         backButton.setOnAction(e -> {
             AdminViewNew adminViewNew = new AdminViewNew(stage);
-            Scene scene = new Scene(adminViewNew.getView(), 1500, 900);
+            Scene scene = com.prisma.ui.ResponsiveUtils.createResponsiveScene(adminViewNew.getView(), 1500, 900);
             Theme.apply(scene);
 
             javafx.scene.Scene currentScene = stage.getScene();
@@ -286,7 +287,7 @@ public class CasesManagementBrownView {
         );
         batchGroupNewButton.setOnAction(e -> showBatchJustificationOverlay());
 
-        batchGroupExistingButton = new Button("DESHACER SELECCIÓN");
+        batchGroupExistingButton = new Button("LIMPIAR SELECCIÓN");
         batchGroupExistingButton.setStyle(
             "-fx-background-color: #E00A1A; " +
             "-fx-background-radius: 6; " +
@@ -303,19 +304,32 @@ public class CasesManagementBrownView {
             updateBatchButtonState();
         });
 
+        batchAddToGroupButton = new Button("AGREGAR A GRUPO EXISTENTE");
+        batchAddToGroupButton.setStyle(
+            "-fx-background-color: #0284c7; " +
+            "-fx-background-radius: 6; " +
+            "-fx-padding: 10 20 10 20; " +
+            "-fx-text-fill: white; " +
+            "-fx-font-weight: bold; " +
+            "-fx-font-size: 14; " +
+            "-fx-font-family: " + FONT + "; " +
+            "-fx-cursor: hand;"
+        );
+        batchAddToGroupButton.setOnAction(e -> showAddToGroupOverlay());
+
         Label actionTitle = new Label("ACCIONES DE AGRUPACIÓN");
         actionTitle.setStyle("-fx-text-fill: white; -fx-font-weight: bold; -fx-padding: 6 20 6 20; -fx-font-size: 14; -fx-font-family: " + FONT + ";");
         VBox actionTitleBox = new VBox(actionTitle);
         actionTitleBox.setAlignment(Pos.CENTER);
         actionTitleBox.setStyle("-fx-background-color: #E00A1A; -fx-background-radius: 8 8 0 0;");
 
-        HBox actionButtonsBox = new HBox(12, batchGroupNewButton, batchGroupExistingButton);
+        HBox actionButtonsBox = new HBox(12, batchGroupNewButton, batchAddToGroupButton, batchGroupExistingButton);
         actionButtonsBox.setAlignment(Pos.CENTER);
         actionButtonsBox.setPadding(new Insets(16));
         actionButtonsBox.setStyle("-fx-background-color: white; -fx-background-radius: 0 0 8 8;");
 
         VBox bottomActionBarBox = new VBox(actionTitleBox, actionButtonsBox);
-        bottomActionBarBox.setMaxWidth(500);
+        bottomActionBarBox.setMaxWidth(javafx.scene.layout.Region.USE_PREF_SIZE);
 
         batchButtonsContainer = new HBox(bottomActionBarBox);
         batchButtonsContainer.setAlignment(Pos.CENTER);
@@ -1033,7 +1047,7 @@ public class CasesManagementBrownView {
         if (view.getScene() != null) {
             view.getScene().setRoot(new javafx.scene.layout.Pane());
         }
-        Scene scene = new Scene(view, 1500, 900);
+        Scene scene = com.prisma.ui.ResponsiveUtils.createResponsiveScene(view, 1500, 900);
         playerViewBrown.applyTheme(scene);
 
                 javafx.scene.Scene currentScene = stage.getScene();
@@ -1217,6 +1231,7 @@ playerViewBrown.focusCase(modalCurrentCase.getNombre());
                 "-fx-cursor: hand;"
             );
             batchGroupNewButton.setDisable(false);
+            batchAddToGroupButton.setDisable(false);
             batchGroupExistingButton.setDisable(false);
             batchButtonsContainer.setVisible(true);
             batchButtonsContainer.setManaged(true);
@@ -1231,6 +1246,7 @@ playerViewBrown.focusCase(modalCurrentCase.getNombre());
                 "-fx-font-family: " + FONT + ";"
             );
             batchGroupNewButton.setDisable(true);
+            batchAddToGroupButton.setDisable(true);
             batchGroupExistingButton.setDisable(true);
             batchButtonsContainer.setVisible(false);
             batchButtonsContainer.setManaged(false);
@@ -1238,6 +1254,15 @@ playerViewBrown.focusCase(modalCurrentCase.getNombre());
     }
 
     private void showBatchJustificationOverlay() {
+        Object nameObj = batchJustificationOverlay.getProperties().get("nameField");
+        if (nameObj instanceof javafx.scene.control.TextField nameField) {
+            nameField.clear();
+        }
+        Object reasonObj = batchJustificationOverlay.getProperties().get("reasonField");
+        if (reasonObj instanceof javafx.scene.control.TextArea reasonField) {
+            reasonField.clear();
+        }
+        
         batchJustificationOverlay.setVisible(true);
         batchJustificationOverlay.setManaged(true);
         batchJustificationOverlay.toFront();
@@ -1277,6 +1302,20 @@ playerViewBrown.focusCase(modalCurrentCase.getNombre());
             "-fx-font-size: 14; " +
             "-fx-text-fill: #7ba3d8; " +
             "-fx-font-family: " + FONT + ";"
+        );
+
+        Label nameLabel = new Label("Nombre del Grupo (Opcional):");
+        nameLabel.setStyle("-fx-text-fill: #d0e4ff; -fx-font-size: 14; -fx-font-weight: bold; -fx-font-family: " + FONT + ";");
+
+        javafx.scene.control.TextField nameField = new javafx.scene.control.TextField();
+        nameField.setPromptText("Ej. Grupo de Extorsión...");
+        nameField.setStyle(
+            "-fx-control-inner-background: #08142e; " +
+            "-fx-text-fill: white; " +
+            "-fx-border-color: #1a3a7a; " +
+            "-fx-border-radius: 6; " +
+            "-fx-font-size: 14; " +
+            "-fx-background-radius: 6;"
         );
 
         Label basisLabel = new Label("Asociar por:");
@@ -1331,10 +1370,11 @@ playerViewBrown.focusCase(modalCurrentCase.getNombre());
 
             String basis = basisBox.getValue();
             String detail = "";
+            String customGroupName = nameField.getText().trim();
 
             java.util.List<Caso> list = new java.util.ArrayList<>(selectedCasesForBatch);
             // Connect them via PlayerView
-            PlayerViewBrown.getInstance(stage).createBatchConnections(list, basis, detail, reason);
+            PlayerViewBrown.getInstance(stage).createBatchConnections(list, basis, detail, reason, customGroupName);
 
             selectedCasesForBatch.clear();
             updateBatchButtonState();
@@ -1367,6 +1407,8 @@ playerViewBrown.focusCase(modalCurrentCase.getNombre());
         dialog.getChildren().addAll(
             titleLabel,
             subtitleLabel,
+            nameLabel,
+            nameField,
             basisLabel,
             basisBox,
             reasonLabel,
@@ -1376,6 +1418,8 @@ playerViewBrown.focusCase(modalCurrentCase.getNombre());
 
         backdrop.getChildren().add(dialog);
         backdrop.getProperties().put("justificationDialog", dialog);
+        backdrop.getProperties().put("nameField", nameField);
+        backdrop.getProperties().put("reasonField", reasonField);
         return backdrop;
     }
 
@@ -1793,7 +1837,7 @@ playerViewBrown.focusCase(modalCurrentCase.getNombre());
         onboardingInProgress = false;
         AdminViewNew.onboardingMode = true;
         AdminViewNew adminViewNew = new AdminViewNew(stage);
-        Scene scene = new Scene(adminViewNew.getView(), 1500, 900);
+        Scene scene = com.prisma.ui.ResponsiveUtils.createResponsiveScene(adminViewNew.getView(), 1500, 900);
         adminViewNew.applyTheme(scene);
 
                 javafx.scene.Scene currentScene = stage.getScene();
@@ -1945,10 +1989,7 @@ playerViewBrown.focusCase(modalCurrentCase.getNombre());
         java.util.List<Caso> demoCases = java.util.List.of(onboardingDemoCaseFirst, onboardingDemoCaseSecond);
         PlayerViewBrown.getInstance(stage).removeConnectionsForCases(demoCases);
         PlayerViewBrown.getInstance(stage).createBatchConnections(
-                demoCases,
-                "Modalidad",
-                "",
-                "Demostración guiada del despacho");
+            demoCases, "Demostración de Onboarding", "Asociación manual", "Prueba guiada", "Grupo Onboarding");
     }
 
     private void cleanupOnboardingDemoAndFinish() {
