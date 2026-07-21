@@ -303,6 +303,30 @@ if (PlayerViewBrown.onboardingMode) {
         FadeTransition hideUi = new FadeTransition(Duration.millis(300), shellContainer);
         hideUi.setToValue(0.0);
 
+        // Add a hard fallback timer of 4.5 seconds to guarantee the action runs 
+        // even if the MediaPlayer hangs or fails to reach EndOfMedia.
+        javafx.animation.PauseTransition fallbackTimer = new javafx.animation.PauseTransition(Duration.millis(4500));
+        
+        final boolean[] actionRun = {false};
+        Runnable safeAction = () -> {
+            if (!actionRun[0]) {
+                actionRun[0] = true;
+                if (currentTransitionPlayer != null) {
+                    currentTransitionPlayer.stop();
+                }
+                action.run();
+                view.setMouseTransparent(false);
+            }
+        };
+
+        fallbackTimer.setOnFinished(ev -> {
+            if (!actionRun[0]) {
+                System.out.println("Fallback timer triggered for " + videoFilename + " - forcing transition");
+                safeAction.run();
+            }
+        });
+        fallbackTimer.play();
+
         try {
             if (currentTransitionPlayer != null) {
                 currentTransitionPlayer.stop();
@@ -319,25 +343,29 @@ if (PlayerViewBrown.onboardingMode) {
             mediaView.setVisible(true);
             
             player.setOnEndOfMedia(() -> {
-                action.run();
-                view.setMouseTransparent(false);
-                // We keep the media view visible or not depending on the action,
-                // but usually the action replaces the root scene anyway.
+                safeAction.run();
             });
             
             player.setOnError(() -> {
                 System.err.println("Media player error: " + player.getError());
-                action.run();
+                safeAction.run();
             });
 
             player.setOnReady(() -> {
                 hideUi.play();
                 player.play();
+                
+                // Dynamically adjust fallback to the video duration + 1 second if possible
+                javafx.util.Duration mediaDuration = player.getMedia().getDuration();
+                if (!mediaDuration.isUnknown() && !mediaDuration.isIndefinite()) {
+                    fallbackTimer.setDuration(mediaDuration.add(javafx.util.Duration.millis(1000)));
+                    fallbackTimer.playFromStart();
+                }
             });
 
         } catch (Exception e) {
             System.err.println("Error playing video transition: " + e.getMessage());
-            action.run();
+            safeAction.run();
         }
     }
 

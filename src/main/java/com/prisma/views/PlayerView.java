@@ -123,6 +123,7 @@ public class PlayerView {
     private GroupMeta pendingDecisionMeta;
     private String pendingDecisionGroupName;
     private String pendingDecisionReason;
+    private Runnable onDecisionCallback;
     private Button pendingDecisionColorButton;
     private final Label connectionDialogTitle;
     private final Label connectionDialogSubtitle;
@@ -319,7 +320,7 @@ public class PlayerView {
         boardBackgroundView.setPreserveRatio(false);
         boardBackgroundView.fitWidthProperty().bind(board.widthProperty());
         boardBackgroundView.fitHeightProperty().bind(board.heightProperty());
-        boardBackgroundView.setMouseTransparent(true);
+        boardBackgroundView.setMouseTransparent(false);
 
         groupLayer = new Pane();
         groupLayer.setMouseTransparent(true);
@@ -1363,9 +1364,6 @@ public class PlayerView {
         if (investigationFinished) {
             return;
         }
-        if (!handMode) {
-            return;
-        }
         if (event.isPrimaryButtonDown()) {
             panning = true;
             panStartX = event.getX();
@@ -1671,8 +1669,8 @@ public class PlayerView {
     }
 
     private void centerBoardOnPoint(double centerX, double centerY, boolean animate) {
-        double viewportWidth = board.getWidth() > 0 ? board.getWidth() : board.getPrefWidth();
-        double viewportHeight = board.getHeight() > 0 ? board.getHeight() : board.getPrefHeight();
+        double viewportWidth = board.getWidth() > 0 ? board.getWidth() : (board.getPrefWidth() > 0 ? board.getPrefWidth() : 1260);
+        double viewportHeight = board.getHeight() > 0 ? board.getHeight() : (board.getPrefHeight() > 0 ? board.getPrefHeight() : 720);
         double targetX = (viewportWidth / 2.0) - (centerX * boardZoom);
         double targetY = (viewportHeight / 2.0) - (centerY * boardZoom);
 
@@ -1831,7 +1829,33 @@ public class PlayerView {
         showDecisionOverlay();
     }
 
+    
+    public void triggerDecisionForGroup(String signature, Runnable onDecisionMade) {
+        if (investigationFinished) return;
+        GroupMeta meta = metadataBySignature.get(signature);
+        if (meta == null) return;
+        
+        pendingDecisionGroupSignature = signature;
+        pendingDecisionMeta = meta;
+        pendingDecisionGroupName = meta.name;
+        pendingDecisionReason = meta.reason;
+        pendingDecisionColorButton = null;
+        this.onDecisionCallback = onDecisionMade;
+        showDecisionOverlay();
+    }
+
+    
+    public javafx.scene.layout.StackPane getDecisionOverlay() {
+        return decisionOverlay;
+    }
+
     private void showDecisionOverlay() {
+        if (!moduleHost.getChildren().contains(decisionOverlay)) {
+            if (decisionOverlay.getParent() instanceof javafx.scene.layout.Pane) {
+                ((javafx.scene.layout.Pane) decisionOverlay.getParent()).getChildren().remove(decisionOverlay);
+            }
+            moduleHost.getChildren().add(decisionOverlay);
+        }
         decisionOptionCheckboxes.values().forEach(check -> check.setSelected(false));
         decisionJustificationsContainer.getChildren().clear();
         decisionJustificationFields.clear();
@@ -1941,6 +1965,10 @@ public class PlayerView {
             updateGroupOverlays();
         }
         hideDecisionOverlay();
+        if (onDecisionCallback != null) {
+            onDecisionCallback.run();
+            onDecisionCallback = null; // Clear it after running
+        }
     }
 
     private void updateInvestigationTimer() {
@@ -2994,10 +3022,10 @@ public class PlayerView {
 
         public String name;
         public Color color;
-        private String mode;
+        public String mode;
         public String reason;
-        private String decisionDetail;
-        private boolean finalized;
+        public String decisionDetail;
+        public boolean finalized;
 
         private GroupMeta(String name, Color color, String mode, String reason, String decisionDetail,
                 boolean finalized) {

@@ -334,14 +334,14 @@ public class PlayerViewBrown {
         backgroundView.setPreserveRatio(false);
         backgroundView.fitWidthProperty().bind(board.widthProperty());
         backgroundView.fitHeightProperty().bind(board.heightProperty());
-        backgroundView.setMouseTransparent(true);
+        backgroundView.setMouseTransparent(false);
         backgroundView.setOpacity(0.38);
 
         Rectangle backgroundTint = new Rectangle();
         backgroundTint.widthProperty().bind(board.widthProperty());
         backgroundTint.heightProperty().bind(board.heightProperty());
         backgroundTint.setFill(Color.web("#08142e", 0.48));
-        backgroundTint.setMouseTransparent(true);
+        backgroundTint.setMouseTransparent(false);
 
         Pane gridLayer = new Pane();
         gridLayer.setMouseTransparent(true);
@@ -1354,6 +1354,18 @@ public class PlayerViewBrown {
     }
 
     
+    
+    
+    public javafx.scene.layout.StackPane getDecisionOverlay() {
+        return playerView != null ? playerView.getDecisionOverlay() : null;
+    }
+
+    public void triggerDecisionForGroup(String signature, Runnable callback) {
+        if (playerView != null) {
+            playerView.triggerDecisionForGroup(signature, callback);
+        }
+    }
+
     public java.util.List<PlayerView.GroupCluster> findGroupsForCase(com.prisma.models.Caso caso) {
         if (playerView == null) return java.util.Collections.emptyList();
         return playerView.findGroupsForCase(caso);

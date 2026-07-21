@@ -496,6 +496,35 @@ public class CasesManagementBrownView {
                 casesList.getChildren().add(caseLbl);
             }
             
+            if (cluster.meta != null && cluster.meta.finalized) {
+                Label decidedLbl = new Label("Decisión tomada: " + cluster.meta.mode);
+                decidedLbl.setStyle("-fx-text-fill: #A0B0C0; -fx-font-size: 11px; -fx-font-style: italic; -fx-padding: 6 0 0 0;");
+                casesList.getChildren().add(decidedLbl);
+            } else {
+                Button decideBtn = new Button("¿Qué vas a decidir ahora?");
+                decideBtn.setStyle("-fx-background-color: #F1C40F; -fx-text-fill: #000000; -fx-font-size: 11px; -fx-font-weight: bold; -fx-cursor: hand; -fx-padding: 6 8; -fx-background-radius: 4;");
+                decideBtn.setMaxWidth(Double.MAX_VALUE);
+                VBox.setMargin(decideBtn, new Insets(8, 0, 0, 0));
+                decideBtn.setOnAction(e -> {
+                    PlayerViewBrown pvb = PlayerViewBrown.getInstance(stage);
+                    
+                    Runnable onDecisionMade = () -> javafx.application.Platform.runLater(() -> refreshActiveGroups(stage));
+                    pvb.triggerDecisionForGroup(cluster.signature, onDecisionMade);
+                    
+                    javafx.scene.layout.StackPane overlay = pvb.getDecisionOverlay();
+                    if (overlay != null) {
+                        if (overlay.getParent() instanceof javafx.scene.layout.Pane) {
+                            ((javafx.scene.layout.Pane) overlay.getParent()).getChildren().remove(overlay);
+                        }
+                        if (!view.getChildren().contains(overlay)) {
+                            view.getChildren().add(overlay);
+                        }
+                        overlay.toFront();
+                    }
+                });
+                casesList.getChildren().add(decideBtn);
+            }
+            
             headerBox.setOnMouseClicked(e -> {
                 boolean isExpanded = casesList.isVisible();
                 casesList.setVisible(!isExpanded);
