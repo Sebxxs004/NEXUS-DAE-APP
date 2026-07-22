@@ -6,6 +6,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class Caso {
+    private String radicado;
     private String nombre;
     private String descripcion;
     private String lugar;
@@ -20,6 +21,7 @@ public class Caso {
     public Caso(String nombre, String descripcion, String lugar, LocalDate fechaHechos,
                 List<String> victimas, List<String> victimarios, List<String> delitos,
                 List<String> actoresInvolucrados) {
+        this.radicado = "";
         this.nombre = nombre;
         this.descripcion = descripcion;
         this.lugar = lugar;
@@ -33,7 +35,6 @@ public class Caso {
 
     /** Constructor simplificado para casos generados desde la carpeta casos/. */
     public Caso(String nombre, String imagenPath) {
-        this.nombre = nombre;
         this.imagenPath = imagenPath;
         this.descripcion = "Caso cargado desde imagen.";
         this.lugar = "Sin especificar";
@@ -42,8 +43,25 @@ public class Caso {
         this.victimarios = new ArrayList<>();
         this.delitos = new ArrayList<>();
         this.actoresInvolucrados = new ArrayList<>();
+
+        String[] parts = nombre.split("_");
+        if (parts.length >= 1) {
+            this.radicado = parts[0].trim();
+            this.nombre = this.radicado; // Usar el radicado como nombre principal para la UI
+            for (int i = 1; i < parts.length; i++) {
+                String delito = parts[i].trim();
+                if (!delito.isEmpty()) {
+                    this.delitos.add(delito);
+                }
+            }
+        } else {
+            this.nombre = nombre;
+            this.radicado = nombre;
+        }
     }
 
+    public String getRadicado() { return radicado; }
+    public void setRadicado(String radicado) { this.radicado = radicado; }
     public String getNombre() { return nombre; }
     public void setNombre(String nombre) { this.nombre = nombre; }
     public String getDescripcion() { return descripcion; }
@@ -77,7 +95,11 @@ public class Caso {
     }
 
     public String getDetallado() {
-        return "Descripción: " + descripcion + "\n"
+        String base = "";
+        if (radicado != null && !radicado.isBlank()) {
+            base += "Radicado: " + radicado + "\n";
+        }
+        return base + "Descripción: " + descripcion + "\n"
                 + "Lugar: " + lugar + "\n"
                 + "Fecha: " + getFechaHechosFormateada() + "\n"
                 + "Víctimas: " + String.join(", ", victimas) + "\n"

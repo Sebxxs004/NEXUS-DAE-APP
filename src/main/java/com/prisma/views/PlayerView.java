@@ -1626,6 +1626,7 @@ public class PlayerView {
             return "";
         }
         return String.join(" | ",
+                safeLower(caso.getRadicado()),
                 safeLower(caso.getNombre()),
                 safeLower(caso.getDescripcion()),
                 safeLower(caso.getLugar()),

@@ -354,7 +354,7 @@ public class CasesManagementBrownView {
 
         casesGrid = new TilePane();
         casesGrid.setHgap(14);
-        casesGrid.setVgap(24);
+        casesGrid.setVgap(36);
         casesGrid.setTileAlignment(Pos.TOP_LEFT);
         casesGrid.setPrefColumns(4);
         casesGrid.setPrefTileWidth(225);
@@ -471,6 +471,12 @@ public class CasesManagementBrownView {
             HBox titleBox = new HBox(8, colorDot, nameLbl);
             titleBox.setAlignment(Pos.CENTER_LEFT);
             
+            if (cluster.meta != null && cluster.meta.finalized) {
+                Label decidedBadge = new Label("DECISIÓN TOMADA");
+                decidedBadge.setStyle("-fx-background-color: #27AE60; -fx-text-fill: #FFFFFF; -fx-font-size: 9px; -fx-padding: 3 6; -fx-background-radius: 10; -fx-font-weight: bold;");
+                titleBox.getChildren().add(decidedBadge);
+            }
+            
             FontIcon arrowIcon = new FontIcon(org.kordamp.ikonli.fontawesome5.FontAwesomeSolid.CHEVRON_DOWN);
             arrowIcon.setIconColor(Color.web("#808D9E"));
             arrowIcon.setIconSize(12);
@@ -544,10 +550,15 @@ public class CasesManagementBrownView {
 
         var filtered = CasoRepository.getCasos().stream()
                 .sorted(Comparator.comparing(Caso::getNombre, String.CASE_INSENSITIVE_ORDER))
-                .filter(caso -> normalizedQuery.isEmpty()
-                        || containsIgnoreCase(caso.getNombre(), normalizedQuery)
-                        || containsIgnoreCase(caso.getLugar(), normalizedQuery)
-                        || containsIgnoreCase(caso.getDescripcion(), normalizedQuery))
+                .filter(caso -> {
+                    if (normalizedQuery.isEmpty()) return true;
+                    if (containsIgnoreCase(caso.getNombre(), normalizedQuery)) return true;
+                    if (containsIgnoreCase(caso.getLugar(), normalizedQuery)) return true;
+                    if (containsIgnoreCase(caso.getDescripcion(), normalizedQuery)) return true;
+                    if (caso.getRadicado() != null && containsIgnoreCase(caso.getRadicado(), normalizedQuery)) return true;
+                    if (caso.getDelitos() != null && caso.getDelitos().stream().anyMatch(d -> containsIgnoreCase(d, normalizedQuery))) return true;
+                    return false;
+                })
                 .toList();
 
         currentCases = filtered;
