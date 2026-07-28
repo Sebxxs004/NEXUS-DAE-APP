@@ -785,6 +785,19 @@ public class CasesManagementBrownView {
         cardWrapper.setMinWidth(225);
         cardWrapper.setMaxWidth(225);
         cardWrapper.getProperties().put("caso", caso);
+
+        if (captureOnboardingTargets) {
+            if (onboardingDemoCaseFirst == null) {
+                onboardingDemoCaseFirst = caso;
+                detailsButton.getProperties().put("onboardingVer", true);
+                selectBox.getProperties().put("onboardingCheckbox", true);
+            } else if (onboardingDemoCaseSecond == null) {
+                onboardingDemoCaseSecond = caso;
+                selectBox.getProperties().put("onboardingCheckbox2", true);
+                captureOnboardingTargets = false;
+            }
+        }
+        
         return cardWrapper;
     }
 
@@ -1953,6 +1966,7 @@ playerViewBrown.focusCase(modalCurrentCase.getNombre());
             onboardingPendingStart = false;
             return;
         }
+        resolveOnboardingTargets();
         if (onboardingVerTarget == null || onboardingCheckboxTarget == null || onboardingDemoCaseSecond == null) {
             onboardingPendingStart = false;
             return;

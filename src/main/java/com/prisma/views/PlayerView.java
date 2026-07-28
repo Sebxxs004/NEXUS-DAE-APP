@@ -1748,9 +1748,8 @@ public class PlayerView {
         headerRow.setAlignment(Pos.CENTER_LEFT);
 
         if (meta.finalized) {
-            Label finalizedLabel = new Label("✔ Grupo finalizado");
-            finalizedLabel.getStyleClass().add("app-subtitle");
-            finalizedLabel.setStyle("-fx-text-fill: #22c55e; -fx-font-weight: bold;");
+            Label finalizedLabel = new Label("DECISIÓN TOMADA");
+            finalizedLabel.setStyle("-fx-background-color: #27AE60; -fx-text-fill: #FFFFFF; -fx-font-size: 10px; -fx-padding: 3 8; -fx-background-radius: 12; -fx-font-weight: bold;");
             VBox decisionInfo = new VBox(4);
             if (meta.mode != null && !meta.mode.isBlank()) {
                 Label decisionLabel = new Label("Decisiones: " + meta.mode);
@@ -2053,6 +2052,26 @@ public class PlayerView {
 
         String investigatorName = InvestigationTeamContext.getMembersDisplay();
 
+        String timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss"));
+        javafx.stage.FileChooser fileChooser = new javafx.stage.FileChooser();
+        fileChooser.setTitle("Guardar reporte de investigación");
+        fileChooser.setInitialFileName("nexus-investigacion-" + timestamp + ".pdf");
+        fileChooser.getExtensionFilters().add(new javafx.stage.FileChooser.ExtensionFilter("Archivos PDF (*.pdf)", "*.pdf"));
+
+        java.io.File destFile = null;
+        while (destFile == null) {
+            destFile = fileChooser.showSaveDialog(stage);
+            if (destFile == null) {
+                if (reason.contains("Tiempo")) {
+                    showAlert(Alert.AlertType.WARNING, "El tiempo se agotó. Es obligatorio guardar el archivo PDF para finalizar la evaluación.");
+                } else {
+                    return; // user cancelled normal exit
+                }
+            }
+        }
+        
+        final java.io.File finalDestFile = destFile;
+
         finishingInProgress = true;
         disableInvestigationPanel();
         showPdfLoadingOverlay();
@@ -2061,7 +2080,7 @@ public class PlayerView {
             @Override
             protected Path call() throws Exception {
                 persistInvestigationSnapshot();
-                return exportInvestigationPdf(reason, investigatorName);
+                return exportInvestigationPdf(reason, investigatorName, finalDestFile.toPath());
             }
         };
 
@@ -2082,7 +2101,7 @@ public class PlayerView {
             statusLabel.setText("Investigación finalizada, pero hubo error al generar el PDF.");
             hidePdfLoadingOverlay();
 
-            Path backupTxt = exportBackupTextFile(reason, investigatorName);
+            Path backupTxt = exportBackupTextFile(reason, investigatorName, finalDestFile.toPath());
             String backupMsg = "";
             if (backupTxt != null) {
                 backupMsg = "\n\nSe ha generado un archivo de respaldo de texto plano con tu trabajo en:\n"
@@ -2331,12 +2350,13 @@ public class PlayerView {
         hideConnectionJustificationOverlay();
     }
 
-    private Path exportBackupTextFile(String endReason, String investigatorName) {
+    private Path exportBackupTextFile(String endReason, String investigatorName, Path originalPdfPath) {
         try {
-            Path downloads = Paths.get(System.getProperty("user.home"), "Downloads");
-            Files.createDirectories(downloads);
-            String timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss"));
-            Path backupFile = downloads.resolve("nexus-investigacion-backup-" + timestamp + ".txt");
+            String originalName = originalPdfPath.getFileName().toString();
+            if (originalName.toLowerCase().endsWith(".pdf")) {
+                originalName = originalName.substring(0, originalName.length() - 4);
+            }
+            Path backupFile = originalPdfPath.getParent().resolve(originalName + "-backup.txt");
 
             ReportData reportData = buildInvestigationReportData(endReason, investigatorName);
 
@@ -2412,12 +2432,7 @@ public class PlayerView {
         }
     }
 
-    private Path exportInvestigationPdf(String endReason, String investigatorName) throws IOException {
-        Path downloads = Paths.get(System.getProperty("user.home"), "Downloads");
-        Files.createDirectories(downloads);
-
-        String timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss"));
-        Path output = downloads.resolve("nexus-investigacion-" + timestamp + ".pdf");
+    private Path exportInvestigationPdf(String endReason, String investigatorName, Path output) throws IOException {
 
         ReportData reportData = buildInvestigationReportData(endReason, investigatorName);
         InvestigationReportPdfExporter.generate(output, reportData);
