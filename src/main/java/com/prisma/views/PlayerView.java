@@ -3157,6 +3157,44 @@ public class PlayerView {
         return false;
     }
 
+    private void removeCaseFromGroups(CaseNode targetNode) {
+        Set<String> groupsToRepair = new HashSet<>();
+        List<Connection> edgesToRemove = new ArrayList<>();
+
+        for (Connection conn : connections) {
+            if (conn.from == targetNode || conn.to == targetNode) {
+                if (conn.groupId != null && !conn.groupId.isEmpty()) {
+                    groupsToRepair.add(conn.groupId);
+                    edgesToRemove.add(conn);
+                }
+            }
+        }
+
+        connections.removeAll(edgesToRemove);
+
+        // Ensure remaining members of affected groups stay connected
+        for (String groupId : groupsToRepair) {
+            List<CaseNode> remainingNodes = new ArrayList<>();
+            for (Connection conn : connections) {
+                if (groupId.equals(conn.groupId)) {
+                    if (!remainingNodes.contains(conn.from)) remainingNodes.add(conn.from);
+                    if (!remainingNodes.contains(conn.to)) remainingNodes.add(conn.to);
+                }
+            }
+            if (remainingNodes.size() >= 2) {
+                CaseNode root = remainingNodes.get(0);
+                for (int i = 1; i < remainingNodes.size(); i++) {
+                    CaseNode other = remainingNodes.get(i);
+                    boolean connected = connections.stream().anyMatch(c -> c.groupId.equals(groupId) && 
+                        ((c.from == root && c.to == other) || (c.from == other && c.to == root)));
+                    if (!connected) {
+                        connections.add(new Connection(root, other, "Mantenimiento de grupo", groupId));
+                    }
+                }
+            }
+        }
+    }
+
     public List<GroupCluster> getCurrentClusters() {
         return currentClusters;
     }
@@ -3182,6 +3220,7 @@ public class PlayerView {
         }
 
         CaseNode targetMember = targetGroup.members.get(0);
+        String finalTargetGroupSignature = targetGroup.signature;
 
         String connectionSummary = "Asociado por: " + basis;
         if (detail != null && !detail.isBlank()) {
@@ -3189,38 +3228,21 @@ public class PlayerView {
         }
         connectionSummary += " | Justificación: " + reason;
 
-        // Connect the selected cases consecutively
+        // Ensure nodes are not in other groups
+        for (CaseNode node : targetNodes) {
+            removeCaseFromGroups(node);
+        }
+
+        // Connect the selected cases consecutively with the new group signature
         for (int i = 0; i < targetNodes.size() - 1; i++) {
             CaseNode from = targetNodes.get(i);
             CaseNode to = targetNodes.get(i + 1);
-            boolean alreadyConnected = connections.stream()
-                    .anyMatch(conn -> (conn.from == from && conn.to == to) || (conn.from == to && conn.to == from));
-            if (!alreadyConnected) {
-                connections.add(new Connection(from, to, connectionSummary, "Grupo Legado"));
-            }
+            connections.add(new Connection(from, to, connectionSummary, finalTargetGroupSignature));
         }
 
         // Connect the first of the selected cases to the target group member
         CaseNode firstNewNode = targetNodes.get(0);
-        
-        String targetGroupSignature = null;
-        for (GroupCluster cluster : currentClusters) {
-            if (cluster.members.contains(targetMember)) {
-                targetGroupSignature = cluster.signature;
-                break;
-            }
-        }
-        if (targetGroupSignature == null) {
-            targetGroupSignature = "Grupo Legado";
-        }
-        String finalTargetGroupSignature = targetGroupSignature;
-        
-        boolean alreadyConnected = connections.stream()
-                .anyMatch(conn -> ((conn.from == firstNewNode && conn.to == targetMember)
-                        || (conn.from == targetMember && conn.to == firstNewNode)) && finalTargetGroupSignature.equals(conn.groupId));
-        if (!alreadyConnected) {
-            connections.add(new Connection(firstNewNode, targetMember, connectionSummary, finalTargetGroupSignature));
-        }
+        connections.add(new Connection(firstNewNode, targetMember, connectionSummary, finalTargetGroupSignature));
 
         refreshConnections();
         refreshGroups();
@@ -3252,17 +3274,17 @@ public class PlayerView {
         }
         connectionSummary += " | Justificación: " + reason;
 
+        // Ensure nodes are not in other groups
+        for (CaseNode node : targetNodes) {
+            removeCaseFromGroups(node);
+        }
+
         // Connect consecutively
+        String actualGroupId = customGroupName != null && !customGroupName.isBlank() ? customGroupName : "Grupo " + (getMaxSequence() + 1);
         for (int i = 0; i < targetNodes.size() - 1; i++) {
             CaseNode from = targetNodes.get(i);
             CaseNode to = targetNodes.get(i + 1);
-
-            String actualGroupId = customGroupName != null && !customGroupName.isBlank() ? customGroupName : "Grupo " + (getMaxSequence() + 1);
-            boolean alreadyConnected = connections.stream()
-                    .anyMatch(conn -> ((conn.from == from && conn.to == to) || (conn.from == to && conn.to == from)) && actualGroupId.equals(conn.groupId));
-            if (!alreadyConnected) {
-                connections.add(new Connection(from, to, connectionSummary, actualGroupId));
-            }
+            connections.add(new Connection(from, to, connectionSummary, actualGroupId));
         }
 
         refreshConnections();
