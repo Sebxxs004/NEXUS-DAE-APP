@@ -1485,6 +1485,8 @@ public class PlayerView {
 
     private void updateCaseSearchSuggestions(String query) {
         String normalized = query == null ? "" : query.trim().toLowerCase();
+        normalized = java.text.Normalizer.normalize(normalized, java.text.Normalizer.Form.NFD)
+                .replaceAll("\\p{InCombiningDiacriticalMarks}+", "");
         if (normalized.isBlank()) {
             caseSearchSuggestions.getItems().clear();
             caseSearchSuggestions.setVisible(false);
@@ -1492,10 +1494,11 @@ public class PlayerView {
             return;
         }
 
+        final String searchStr = normalized;
         List<String> matches = nodes.stream()
                 .map(node -> node.getCaso())
                 .distinct()
-                .filter(caso -> buildSearchIndex(caso).contains(normalized))
+                .filter(caso -> buildSearchIndex(caso).contains(searchStr))
                 .map(Caso::getNombre)
                 .sorted(String.CASE_INSENSITIVE_ORDER)
                 .limit(6)
@@ -1512,6 +1515,8 @@ public class PlayerView {
 
     private void searchCaseByQuery(String query) {
         String normalized = query == null ? "" : query.trim();
+        normalized = java.text.Normalizer.normalize(normalized, java.text.Normalizer.Form.NFD)
+                .replaceAll("\\p{InCombiningDiacriticalMarks}+", "");
         if (normalized.isBlank()) {
             statusLabel.setText("Escribe el nombre de un caso para buscarlo.");
             return;
@@ -1572,10 +1577,11 @@ public class PlayerView {
             suggestion = caseSearchSuggestions.getItems().stream().findFirst().orElse(null);
         }
         final String resolvedSuggestion = suggestion;
+        final String finalNormalized = normalized;
 
         CaseNode target = nodes.stream()
                 .filter(node -> buildSearchIndex(node.getCaso()).contains(lowerQuery)
-                        || node.getCaso().getNombre().equalsIgnoreCase(normalized))
+                        || node.getCaso().getNombre().equalsIgnoreCase(finalNormalized))
                 .findFirst()
                 .orElse(null);
 
@@ -1638,7 +1644,10 @@ public class PlayerView {
     }
 
     private String safeLower(String value) {
-        return value == null ? "" : value.toLowerCase();
+        if (value == null) return "";
+        String normalized = java.text.Normalizer.normalize(value, java.text.Normalizer.Form.NFD)
+                .replaceAll("\\p{InCombiningDiacriticalMarks}+", "");
+        return normalized.toLowerCase();
     }
 
     private void centerBoardOnNode(CaseNode target) {

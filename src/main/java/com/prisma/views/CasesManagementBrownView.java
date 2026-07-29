@@ -723,7 +723,11 @@ public class CasesManagementBrownView {
             "-fx-font-family: " + FONT + ";"
         );
         
-        VBox titleBox = new VBox(2, nameLabel, statusLabel);
+        String delitoStr = (caso.getDelitos() != null && !caso.getDelitos().isEmpty()) ? caso.getDelitos().get(0) : "";
+        Label delitoLabel = new Label(delitoStr.toUpperCase());
+        delitoLabel.setStyle("-fx-font-size: 10; -fx-font-weight: bold; -fx-text-fill: #E74C3C; -fx-font-family: " + FONT + ";");
+
+        VBox titleBox = new VBox(2, delitoLabel, nameLabel, statusLabel);
         titleBox.setAlignment(Pos.CENTER);
         titleBox.setPadding(new Insets(0, 10, 10, 10));
         titleBox.setStyle("-fx-background-color: #FFFFFF;");
@@ -1648,7 +1652,16 @@ playerViewBrown.focusCase(modalCurrentCase.getNombre());
     }
 
     private boolean containsIgnoreCase(String value, String query) {
-        return value != null && query != null && value.toLowerCase().contains(query);
+        if (value == null || query == null) return false;
+        String valNorm = stripAccents(value.toLowerCase());
+        String qNorm = stripAccents(query.toLowerCase());
+        return valNorm.contains(qNorm);
+    }
+
+    private String stripAccents(String s) {
+        if (s == null) return null;
+        return java.text.Normalizer.normalize(s, java.text.Normalizer.Form.NFD)
+                .replaceAll("\\p{InCombiningDiacriticalMarks}+", "");
     }
 
     private double clamp(double value, double min, double max) {
