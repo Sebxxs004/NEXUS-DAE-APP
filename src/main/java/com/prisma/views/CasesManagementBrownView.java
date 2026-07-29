@@ -1372,8 +1372,8 @@ playerViewBrown.focusCase(modalCurrentCase.getNombre());
                 return;
             }
 
-            double maxW = Math.min(920, stage.getWidth() * 0.82);
-            double maxH = Math.min(640, stage.getHeight() * 0.72);
+            double maxW = stage.getWidth() * 0.92;
+            double maxH = stage.getHeight() * 0.85;
             double minW = 360;
             double minH = 280;
 
