@@ -28,6 +28,8 @@ public class ResponsiveUtils {
             region.setMinSize(baseWidth, baseHeight);
             region.setMaxSize(baseWidth, baseHeight);
         }
+        javafx.scene.shape.Rectangle clip = new javafx.scene.shape.Rectangle(baseWidth, baseHeight);
+        view.setClip(clip);
 
         // Group ignores layout bounds and allows its children to be scaled freely
         Group scalingGroup = new Group(view);

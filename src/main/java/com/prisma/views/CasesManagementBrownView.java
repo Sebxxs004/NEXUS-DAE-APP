@@ -24,6 +24,10 @@ import javafx.scene.Scene;
 import javafx.scene.control.Button;
 import javafx.scene.control.ContentDisplay;
 import javafx.scene.control.Label;
+import javafx.scene.control.MenuButton;
+import javafx.scene.control.MenuItem;
+import javafx.scene.control.CheckMenuItem;
+import javafx.scene.control.SeparatorMenuItem;
 import javafx.scene.control.OverrunStyle;
 import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableValue;
@@ -72,6 +76,7 @@ public class CasesManagementBrownView {
     private final Timeline timerTimeline;
     private final StackPane modalOverlay;
     private final TextField searchField;
+    private final java.util.Set<String> selectedDelitos = new java.util.HashSet<>();
     private ImageView modalImageView;
     private Label modalTitleLabel;
     private Label modalHintLabel;
@@ -237,7 +242,7 @@ public class CasesManagementBrownView {
         searchIcon.setStyle("-fx-font-size: 15; -fx-text-fill: #7ba3d8; -fx-font-family: " + FONT + ";");
 
         searchField = new TextField();
-        searchField.setPromptText("Buscar por número de caso o nombre...");
+        searchField.setPromptText("Buscar por número de radicado...");
         searchField.setPrefHeight(40);
         searchField.setStyle(
             "-fx-background-color: #FFFFFF; " +
@@ -338,7 +343,61 @@ public class CasesManagementBrownView {
         batchButtonsContainer.setVisible(false);
         batchButtonsContainer.setManaged(false);
 
-        HBox searchRow = new HBox(12, searchIcon, searchField, caseCountLabel);
+        MenuButton delitoMenuButton = new MenuButton("Filtrar por delito");
+        delitoMenuButton.setStyle(
+            "-fx-background-color: #64748B; " +
+            "-fx-text-fill: white; " +
+            "-fx-font-family: " + FONT + "; " +
+            "-fx-font-weight: bold; " +
+            "-fx-font-size: 14; " +
+            "-fx-cursor: hand; " +
+            "-fx-padding: 7 15 7 15; " +
+            "-fx-background-radius: 7;"
+        );
+
+        MenuItem clearItem = new MenuItem("Limpiar filtros");
+        clearItem.setOnAction(e -> {
+            for (MenuItem mi : delitoMenuButton.getItems()) {
+                if (mi instanceof CheckMenuItem cmi) {
+                    cmi.setSelected(false);
+                }
+            }
+            selectedDelitos.clear();
+            refreshGrid(stage);
+        });
+        delitoMenuButton.getItems().addAll(clearItem, new SeparatorMenuItem());
+
+        java.util.Map<String, String> uniqueDelitos = new java.util.TreeMap<>();
+        for (Caso c : CasoRepository.getCasos()) {
+            if (c.getDelitos() != null) {
+                for (String d : c.getDelitos()) {
+                    if (d != null && !d.isBlank()) {
+                        String raw = d.trim().toUpperCase();
+                        String normalized = stripAccents(raw).toLowerCase();
+                        if (!uniqueDelitos.containsKey(normalized)) {
+                            uniqueDelitos.put(normalized, raw);
+                        }
+                    }
+                }
+            }
+        }
+
+        for (java.util.Map.Entry<String, String> entry : uniqueDelitos.entrySet()) {
+            String normKey = entry.getKey();
+            String displayVal = entry.getValue();
+            CheckMenuItem item = new CheckMenuItem(displayVal);
+            item.setOnAction(e -> {
+                if (item.isSelected()) {
+                    selectedDelitos.add(normKey);
+                } else {
+                    selectedDelitos.remove(normKey);
+                }
+                refreshGrid(stage);
+            });
+            delitoMenuButton.getItems().add(item);
+        }
+
+        HBox searchRow = new HBox(12, searchIcon, searchField, delitoMenuButton, caseCountLabel);
         searchRow.setAlignment(Pos.CENTER_LEFT);
         searchRow.setPadding(new Insets(10, 16, 10, 16));
         searchRow.setStyle("-fx-background-color: #0A1128;");
@@ -551,12 +610,25 @@ public class CasesManagementBrownView {
         var filtered = CasoRepository.getCasos().stream()
                 .sorted(Comparator.comparing(Caso::getNombre, String.CASE_INSENSITIVE_ORDER))
                 .filter(caso -> {
+                    if (!selectedDelitos.isEmpty()) {
+                        if (caso.getDelitos() == null || caso.getDelitos().isEmpty()) return false;
+                        boolean hasDelito = false;
+                        for (String d : caso.getDelitos()) {
+                            String dNorm = stripAccents(d.trim()).toLowerCase();
+                            if (selectedDelitos.contains(dNorm)) {
+                                hasDelito = true;
+                                break;
+                            }
+                        }
+                        if (!hasDelito) return false;
+                    }
+
                     if (normalizedQuery.isEmpty()) return true;
+
                     if (containsIgnoreCase(caso.getNombre(), normalizedQuery)) return true;
                     if (containsIgnoreCase(caso.getLugar(), normalizedQuery)) return true;
                     if (containsIgnoreCase(caso.getDescripcion(), normalizedQuery)) return true;
                     if (caso.getRadicado() != null && containsIgnoreCase(caso.getRadicado(), normalizedQuery)) return true;
-                    if (caso.getDelitos() != null && caso.getDelitos().stream().anyMatch(d -> containsIgnoreCase(d, normalizedQuery))) return true;
                     return false;
                 })
                 .toList();
