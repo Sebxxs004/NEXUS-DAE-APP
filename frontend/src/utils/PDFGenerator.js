@@ -1,17 +1,19 @@
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
-export const generatePDFReport = (casos, groups, memberNames = []) => {
+export const generatePDFReport = (casos, groups, memberNames = [], currentUser = null, alertRecords = []) => {
   const doc = new jsPDF();
+  const rolLabel = currentUser?.rol === 'ASISTENTE' ? 'Asistente de Fiscal' : 'Fiscal Delegado';
+  const equipoLabel = currentUser?.equipo?.nombre ? ` - ${currentUser.equipo.nombre}` : '';
   
   // Headers
   doc.setFontSize(22);
   doc.setTextColor(0, 51, 102); // Dark blue
-  doc.text("Informe de Simulacion", 14, 22);
+  doc.text(`Informe de Simulacion (${rolLabel})`, 14, 22);
   
   doc.setFontSize(14);
   doc.setTextColor(100);
-  doc.text("Fiscalia General de la Nacion - Tablero Analitico", 14, 32);
+  doc.text(`Fiscalia General de la Nacion - Tablero Analitico${equipoLabel}`, 14, 32);
 
   // Group Members
   let currentY = 45;
@@ -31,6 +33,7 @@ export const generatePDFReport = (casos, groups, memberNames = []) => {
   }
   
   // General Stats
+  const isAsistente = currentUser?.rol === 'ASISTENTE';
   const totalCases = casos.length;
   const groupedCases = new Set(groups.flatMap(g => g.cases)).size;
   const ungroupedCases = totalCases - groupedCases;
@@ -39,15 +42,30 @@ export const generatePDFReport = (casos, groups, memberNames = []) => {
   doc.setTextColor(0);
   doc.text(`Total de casos analizados: ${totalCases}`, 14, currentY);
   currentY += 7;
-  doc.text(`Casos agrupados: ${groupedCases}`, 14, currentY);
-  currentY += 7;
-  doc.text(`Casos sin grupo: ${ungroupedCases}`, 14, currentY);
-  currentY += 7;
-  doc.text(`Grupos creados: ${groups.length}`, 14, currentY);
-  currentY += 10;
+
+  if (!isAsistente) {
+    doc.text(`Casos agrupados: ${groupedCases}`, 14, currentY);
+    currentY += 7;
+    doc.text(`Casos sin grupo: ${ungroupedCases}`, 14, currentY);
+    currentY += 7;
+    doc.text(`Grupos creados: ${groups.length}`, 14, currentY);
+    currentY += 10;
+  } else {
+    const totalActividades = alertRecords.length;
+    const atendidas = alertRecords.filter(r => !r.status?.includes('IGNORADA')).length;
+    const ignoradas = alertRecords.filter(r => r.status?.includes('IGNORADA')).length;
+    doc.text(`Actividades y gestiones registradas: ${totalActividades}`, 14, currentY);
+    currentY += 7;
+    doc.text(`Actividades atendidas / tramitadas: ${atendidas}`, 14, currentY);
+    currentY += 7;
+    doc.text(`Actividades ignoradas / descartadas: ${ignoradas}`, 14, currentY);
+    currentY += 10;
+  }
   
   // Group Details
-  if (groups.length === 0) {
+  if (isAsistente) {
+    // Para el rol Asistente no se imprimen grupos de asociación, ya que corresponden al Fiscal
+  } else if (groups.length === 0) {
     doc.setFontSize(12);
     doc.text("No se crearon grupos durante esta simulacion.", 14, currentY);
   } else {
@@ -144,6 +162,64 @@ export const generatePDFReport = (casos, groups, memberNames = []) => {
       if (currentY > 260) {
         doc.addPage();
         currentY = 20;
+      }
+    });
+  }
+
+  // Interruption Alerts / Activities Section
+  if (alertRecords && alertRecords.length > 0) {
+    if (currentY > 230) {
+      doc.addPage();
+      currentY = 20;
+    }
+    doc.setFontSize(16);
+    doc.setTextColor(0, 51, 102);
+    doc.text(isAsistente ? "Registro de Actividades Operativas y Alertas" : "Gestion de Alertas e Interrupciones", 14, currentY);
+    currentY += 8;
+
+    alertRecords.forEach((rec, idx) => {
+      if (currentY > 255) {
+        doc.addPage();
+        currentY = 20;
+      }
+      doc.setFontSize(11);
+      doc.setTextColor(0, 51, 102);
+      const title = rec.titulo || rec.image || `Actividad / Alerta #${idx + 1}`;
+      doc.text(`${idx + 1}. [${rec.status || 'REGISTRADO'}] ${title} (${rec.timestamp || ''})`, 14, currentY);
+      currentY += 6;
+
+      // Imprimir el caso / noticia criminal asociada a la alerta
+      if (rec.casoRadicado || rec.casoDelito) {
+        doc.setFontSize(10);
+        doc.setTextColor(30, 58, 138); // Azul institucional destacado
+        doc.text(`Caso NUNC Asociado: ${rec.casoRadicado || 'No especificado'} - Delito: ${rec.casoDelito || ''}`, 18, currentY);
+        currentY += 5;
+      }
+
+      if (rec.esDelegadaPorFiscal) {
+        doc.setFontSize(10);
+        doc.setTextColor(2, 132, 199); // Azul celeste
+        doc.text(`[ORIGEN: Diligencia trasladada por el Fiscal Delegado al Asistente]`, 18, currentY);
+        currentY += 5;
+      }
+
+      // Imprimir la opción elegida
+      if (rec.opcionSeleccionada) {
+        doc.setFontSize(10);
+        doc.setTextColor(15, 118, 110); // Verde / Teal oscuro
+        doc.text(`Accion / Opcion Seleccionada: ${rec.opcionSeleccionada}`, 18, currentY);
+        currentY += 5;
+      }
+
+      const textoJust = rec.justificacion || rec.response;
+      if (textoJust && textoJust.trim()) {
+        doc.setFontSize(10);
+        doc.setTextColor(50);
+        const respLines = doc.splitTextToSize(`Justificacion: ${textoJust.trim()}`, 175);
+        doc.text(respLines, 18, currentY);
+        currentY += respLines.length * 5 + 4;
+      } else {
+        currentY += 2;
       }
     });
   }

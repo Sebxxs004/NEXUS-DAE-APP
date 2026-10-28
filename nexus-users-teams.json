@@ -1,0 +1,36 @@
+{
+  "equipos" : [ {
+    "id" : "1fed0afb-193a-4e7f-ab12-e4b1a7823813",
+    "nombre" : "Despacho 01 - Equipo Mixto",
+    "descripcion" : "Equipo conformado por fiscales delegados y asistentes judiciales"
+  } ],
+  "usuarios" : [ {
+    "id" : "5b99169c-ab22-4cf5-8e0b-50d8f427c684",
+    "nombreCompleto" : "Administrador NEXUS",
+    "username" : "admin",
+    "password" : "admin123",
+    "rol" : "ADMIN",
+    "equipoId" : null
+  }, {
+    "id" : "af251ff2-5795-483a-be07-1f35933a9f4e",
+    "nombreCompleto" : "Dra. Laura Gómez",
+    "username" : "fiscal1",
+    "password" : "1234",
+    "rol" : "FISCAL",
+    "equipoId" : "1fed0afb-193a-4e7f-ab12-e4b1a7823813"
+  }, {
+    "id" : "a7fa3126-a8ee-4eef-aa98-03af21489849",
+    "nombreCompleto" : "Dr. Andrés Restrepo",
+    "username" : "fiscal2",
+    "password" : "1234",
+    "rol" : "FISCAL",
+    "equipoId" : "1fed0afb-193a-4e7f-ab12-e4b1a7823813"
+  }, {
+    "id" : "f90fafa2-c40d-4a96-b30e-9d17e0443b48",
+    "nombreCompleto" : "Camilo Vargas",
+    "username" : "asistente1",
+    "password" : "1234",
+    "rol" : "ASISTENTE",
+    "equipoId" : "1fed0afb-193a-4e7f-ab12-e4b1a7823813"
+  } ]
+}

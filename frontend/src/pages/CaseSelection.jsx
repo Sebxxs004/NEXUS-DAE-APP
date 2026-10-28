@@ -7,7 +7,10 @@ import { useGlobal } from '../context/GlobalContext';
 import GroupSidebar from '../components/GroupSidebar';
 
 export default function CaseSelection() {
-  const { casos, loading, error, groups, addGroup, addCasesToGroup, getCaseGroup } = useGlobal();
+  const { casos, loading, error, groups, addGroup, addCasesToGroup, getCaseGroup, currentUser } = useGlobal();
+  const isAsistente = currentUser?.rol === 'ASISTENTE';
+  const activeRol = isAsistente ? 'ASISTENTE' : 'FISCAL';
+  const homeRoute = isAsistente ? '/inicio-asistente' : '/inicio';
   
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedDelito, setSelectedDelito] = useState('');
@@ -109,31 +112,36 @@ export default function CaseSelection() {
   if (error) return <div style={{ color: 'red', padding: '20px' }}>Error: {error}</div>;
 
   return (
-    <div style={{ backgroundColor: '#0A1128', minHeight: '100vh', width: '100vw', padding: '15px', color: 'white', display: 'flex', flexDirection: 'column', fontFamily: 'sans-serif' }}>
+    <div style={{ backgroundColor: isAsistente ? '#061D1A' : '#0A1128', minHeight: '100vh', width: '100vw', padding: '15px', color: 'white', display: 'flex', flexDirection: 'column', fontFamily: 'sans-serif' }}>
       
       {/* Top Header */}
       <header style={{ 
         display: 'flex', justifyContent: 'space-between', alignItems: 'center', 
-        backgroundColor: '#16234D', padding: '10px 20px', borderRadius: '8px', marginBottom: '10px'
+        backgroundColor: isAsistente ? '#0D332E' : '#16234D', padding: '10px 20px', borderRadius: '8px', marginBottom: '10px',
+        border: isAsistente ? '1px solid #10B981' : 'none'
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-          <div style={{ backgroundColor: '#FDE047', padding: '8px', borderRadius: '8px', color: 'black', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ backgroundColor: isAsistente ? '#34D399' : '#FDE047', padding: '8px', borderRadius: '8px', color: 'black', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <FaFolderOpen size={20} />
           </div>
           <div>
-            <h2 style={{ margin: 0, fontSize: '18px', fontWeight: 'bold' }}>Gestión de Casos</h2>
-            <p style={{ margin: 0, fontSize: '12px', opacity: 0.7 }}>Fiscalía General de la Nación</p>
+            <h2 style={{ margin: 0, fontSize: '18px', fontWeight: 'bold' }}>
+              Gestión de Casos · {isAsistente ? 'Asistente de Fiscal' : 'Fiscal Delegado'}
+            </h2>
+            <p style={{ margin: 0, fontSize: '12px', opacity: 0.7 }}>
+              Fiscalía General de la Nación {currentUser?.equipo ? `· ${currentUser.equipo.nombre}` : ''}
+            </p>
           </div>
         </div>
         
         <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-          <div style={{ backgroundColor: '#EF4444', padding: '8px 15px', borderRadius: '6px', fontWeight: 'bold', fontSize: '14px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <div className="timer-clock-badge" style={{ backgroundColor: '#EF4444', padding: '8px 15px', borderRadius: '6px', fontWeight: 'bold', fontSize: '14px', display: 'flex', alignItems: 'center', gap: '8px' }}>
             <div style={{ width: '8px', height: '8px', backgroundColor: 'white', borderRadius: '50%' }}></div>
             {formatTime(timeLeft)}
           </div>
           <button 
-            onClick={() => navigate('/inicio')}
-            style={{ backgroundColor: '#1E3A8A', color: 'white', border: 'none', padding: '8px 15px', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold' }}
+            onClick={() => navigate(homeRoute)}
+            style={{ backgroundColor: isAsistente ? '#059669' : '#1E3A8A', color: 'white', border: 'none', padding: '8px 15px', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold' }}
           >
             Volver atrás
           </button>
@@ -260,7 +268,7 @@ export default function CaseSelection() {
                 )}
 
                 <img 
-                  src={`http://localhost:8080/api/images/${encodeURIComponent(caso.nombre)}`} 
+                  src={`http://localhost:8080/api/images/${encodeURIComponent(caso.nombre)}?rol=${activeRol}`} 
                   alt="Case Preview" 
                   style={{ width: '100%', height: '100%', objectFit: 'cover', opacity: group ? 0.8 : 1 }}
                   onError={(e) => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'flex'; }}
@@ -462,7 +470,7 @@ export default function CaseSelection() {
               <div style={{ flex: 1, overflow: 'auto', display: 'flex', backgroundColor: '#F8FAFC', padding: '20px' }}>
                  <div style={{ margin: 'auto', display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100%', width: '100%' }}>
                    <img 
-                     src={`http://localhost:8080/api/images/${encodeURIComponent(filteredCasos[selectedCaseIndex].nombre)}`} 
+                     src={`http://localhost:8080/api/images/${encodeURIComponent(filteredCasos[selectedCaseIndex].nombre)}?rol=${activeRol}`} 
                      alt="Case Full" 
                      style={{ 
                        width: zoomLevel === 100 ? '100%' : `${zoomLevel}%`, 

@@ -9,6 +9,7 @@ import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 
 import org.springframework.stereotype.Service;
@@ -18,7 +19,8 @@ import com.prisma.models.Caso;
 
 @Service
 public class CasoRepository {
-    private final List<Caso> casos = new ArrayList<>();
+    private final List<Caso> casosFiscal = new ArrayList<>();
+    private final List<Caso> casosAsistente = new ArrayList<>();
 
     private static final Set<String> IMAGE_EXTENSIONS = Set.of(
             ".png", ".jpg", ".jpeg", ".gif", ".bmp", ".webp"
@@ -26,28 +28,67 @@ public class CasoRepository {
 
     @PostConstruct
     public void init() {
-        loadFromCasosFolder();
-        if (casos.isEmpty()) {
-            seed();
+        reloadAll();
+    }
+
+    public synchronized void reloadAll() {
+        casosFiscal.clear();
+        casosAsistente.clear();
+
+        loadFromFolder("casos", casosFiscal);
+        loadFromFolder("casos-asistente", casosAsistente);
+
+        if (casosFiscal.isEmpty()) {
+            seed(casosFiscal);
         }
     }
 
     public List<Caso> getCasos() {
-        return casos;
+        return getCasosByRol("FISCAL");
+    }
+
+    public synchronized List<Caso> getCasosByRol(String rol) {
+        if ("ASISTENTE".equalsIgnoreCase(rol)) {
+            // Re-scan casos-asistente in case new images were added
+            List<Caso> dynamicAsistente = new ArrayList<>();
+            loadFromFolder("casos-asistente", dynamicAsistente);
+            if (!dynamicAsistente.isEmpty()) {
+                return dynamicAsistente;
+            }
+            // Fallback to fiscal cases if casos-asistente is still empty
+            return new ArrayList<>(casosFiscal);
+        }
+        return new ArrayList<>(casosFiscal);
+    }
+
+    public Optional<Caso> findCasoForImage(String nombreCaso, String rol) {
+        if ("ASISTENTE".equalsIgnoreCase(rol)) {
+            List<Caso> asistenteList = new ArrayList<>();
+            loadFromFolder("casos-asistente", asistenteList);
+            Optional<Caso> foundInAsistente = asistenteList.stream()
+                    .filter(c -> c.getNombre().equals(nombreCaso))
+                    .findFirst();
+            if (foundInAsistente.isPresent()) {
+                return foundInAsistente;
+            }
+        }
+        return casosFiscal.stream()
+                .filter(c -> c.getNombre().equals(nombreCaso))
+                .findFirst();
     }
 
     public void addCaso(Caso caso) {
-        casos.add(caso);
+        casosFiscal.add(caso);
     }
 
-    private void loadFromCasosFolder() {
-        Path casosDir = resolveCasosFolder();
-        if (casosDir == null || !Files.isDirectory(casosDir)) {
+    private void loadFromFolder(String folderName, List<Caso> targetList) {
+        Path dir = resolveFolder(folderName);
+        if (dir == null || !Files.isDirectory(dir)) {
             return;
         }
 
         List<Caso> found = new ArrayList<>();
-        try (DirectoryStream<Path> stream = Files.newDirectoryStream(casosDir)) {
+        try (DirectoryStream<Path> stream = Files.newDirectoryStream(dir)) {
             for (Path entry : stream) {
                 if (Files.isRegularFile(entry) && isImage(entry)) {
                     String fileName = entry.getFileName().toString();
@@ -57,15 +98,15 @@ public class CasoRepository {
                 }
             }
         } catch (IOException e) {
-            System.err.println("NEXUS: No se pudo leer la carpeta casos/: " + e.getMessage());
+            System.err.println("NEXUS: No se pudo leer la carpeta " + folderName + "/: " + e.getMessage());
         }
 
         found.sort(Comparator.comparing(Caso::getNombre, String.CASE_INSENSITIVE_ORDER));
-        casos.addAll(found);
+        targetList.addAll(found);
     }
 
-    private Path resolveCasosFolder() {
-        Path userDir = Paths.get(System.getProperty("user.dir"), "casos");
+    private Path resolveFolder(String folderName) {
+        Path userDir = Paths.get(System.getProperty("user.dir"), folderName);
         if (Files.isDirectory(userDir)) {
             return userDir;
         }
@@ -82,12 +123,12 @@ public class CasoRepository {
         return dotIndex > 0 ? fileName.substring(0, dotIndex) : fileName;
     }
 
-    private void seed() {
-        if (!casos.isEmpty()) {
+    private void seed(List<Caso> target) {
+        if (!target.isEmpty()) {
             return;
         }
 
-        casos.addAll(List.of(
+        target.addAll(List.of(
                 new Caso(
                         "Caso Aurora",
                         "Investigación inicial por alteración de evidencia en zona urbana.",

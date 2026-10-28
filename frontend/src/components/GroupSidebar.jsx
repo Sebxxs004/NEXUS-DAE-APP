@@ -3,7 +3,7 @@ import { useGlobal } from '../context/GlobalContext';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FaChevronDown, FaChevronUp } from 'react-icons/fa';
 
-const decisionOptions = [
+const decisionOptionsFiscal = [
   { label: "1. Orden a la Policía Judicial.", question: "¿Qué actividad ordenará a la policía judicial?" },
   { label: "2. Orden de archivo.", question: "¿Cuál causal de archivo aplica?" },
   { label: "3. Solicitud de audiencia ante juez de control de garantías.", question: "¿Qué solicitud de garantías presentará?" },
@@ -13,8 +13,20 @@ const decisionOptions = [
   { label: "7. Otro.", question: "¿Cuál es la otra decisión y su fundamento?" }
 ];
 
+const decisionOptionsAsistente = [
+  { label: "1. Proyectar orden a la Policía Judicial.", question: "¿Qué elementos o actividades proyectará para revisión del Fiscal?" },
+  { label: "2. Proyectar orden de archivo.", question: "¿Qué sustento fáctico y jurídico incluirá en el proyecto de archivo?" },
+  { label: "3. Preparar solicitud de audiencia.", question: "¿Qué anexos y fundamentos preparará para la audiencia?" },
+  { label: "4. Verificación y articulación de conexidad.", question: "¿Qué nexos o elementos comunes documentará en el expediente?" },
+  { label: "5. Atención y contacto con víctimas/testigos.", question: "¿Qué gestión de citación o caracterización realizará?" },
+  { label: "6. Informe de apoyo al Despacho.", question: "Justifique los hallazgos reportados." },
+  { label: "7. Otro.", question: "¿Cuál es la otra actuación de asistente y su fundamento?" }
+];
+
 export default function GroupSidebar() {
-  const { casos, groups, updateGroupDecision } = useGlobal();
+  const { casos, groups, updateGroupDecision, currentUser } = useGlobal();
+  const isAsistente = currentUser?.rol === 'ASISTENTE';
+  const decisionOptions = isAsistente ? decisionOptionsAsistente : decisionOptionsFiscal;
   const [activeDecisionGroupId, setActiveDecisionGroupId] = useState(null);
   
   // State for the modal form

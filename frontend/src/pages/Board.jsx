@@ -51,7 +51,9 @@ const nodeTypes = { caseNode: CaseNode };
 
 export default function Board() {
   const navigate = useNavigate();
-  const { casos, groups } = useGlobal();
+  const { casos, groups, currentUser, alertRecords } = useGlobal();
+  const isAsistente = currentUser?.rol === 'ASISTENTE';
+  const homeRoute = isAsistente ? '/inicio-asistente' : '/inicio';
   const { timeLeft, formatTime, isFinished } = useTimer();
   const [searchTerm, setSearchTerm] = useState('');
   
@@ -59,7 +61,13 @@ export default function Board() {
   const [showTimeoutModal, setShowTimeoutModal] = useState(false);
   const [showWarningModal, setShowWarningModal] = useState(false);
   const [showNamesModal, setShowNamesModal] = useState(false);
-  const [memberNames, setMemberNames] = useState(['', '', '']);
+  const [memberNames, setMemberNames] = useState(() => {
+    const teamMembers = currentUser?.equipo?.integrantes;
+    if (teamMembers && teamMembers.length > 0) {
+      return teamMembers.map(m => `${m.nombreCompleto} (${m.rol})`);
+    }
+    return ['', '', ''];
+  });
   const [simulationEnded, setSimulationEnded] = useState(false);
 
   // Listen to timer finished event
@@ -97,7 +105,7 @@ export default function Board() {
     setShowTimeoutModal(false);
     setShowNamesModal(false);
     setSimulationEnded(true);
-    generatePDFReport(casos, groups, memberNames);
+    generatePDFReport(casos, groups, memberNames, currentUser, alertRecords);
   };
 
   // Generate nodes and edges
@@ -182,26 +190,30 @@ export default function Board() {
   }, [searchTerm, initialNodes]);
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', width: '100vw', backgroundColor: '#0A1128', fontFamily: 'sans-serif' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', width: '100vw', backgroundColor: isAsistente ? '#061D1A' : '#0A1128', fontFamily: 'sans-serif' }}>
       
       {/* Top Header */}
       <header style={{ 
         display: 'flex', justifyContent: 'space-between', alignItems: 'center', 
-        backgroundColor: '#16234D', padding: '10px 20px', borderBottom: '1px solid #1E3A8A', zIndex: 10
+        backgroundColor: isAsistente ? '#0D332E' : '#16234D', padding: '10px 20px', borderBottom: `1px solid ${isAsistente ? '#10B981' : '#1E3A8A'}`, zIndex: 10
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-          <div style={{ backgroundColor: '#FDE047', padding: '8px', borderRadius: '8px', color: 'black', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ backgroundColor: isAsistente ? '#34D399' : '#FDE047', padding: '8px', borderRadius: '8px', color: 'black', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <FaShieldAlt size={20} />
           </div>
           <div>
-            <h2 style={{ margin: 0, fontSize: '18px', fontWeight: 'bold', color: 'white' }}>TABLERO ANALÍTICO</h2>
-            <p style={{ margin: 0, fontSize: '12px', opacity: 0.7, color: 'white' }}>Fiscalía General de la Nación</p>
+            <h2 style={{ margin: 0, fontSize: '18px', fontWeight: 'bold', color: 'white' }}>
+              TABLERO ANALÍTICO · {isAsistente ? 'ASISTENTE' : 'FISCAL'}
+            </h2>
+            <p style={{ margin: 0, fontSize: '12px', opacity: 0.7, color: 'white' }}>
+              Fiscalía General de la Nación {currentUser?.equipo ? `· ${currentUser.equipo.nombre}` : ''}
+            </p>
           </div>
         </div>
 
         {/* Center Search */}
-        <div style={{ flex: 1, maxWidth: '600px', backgroundColor: '#1E3A8A', borderRadius: '8px', padding: '10px 20px', display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <FaSearch color="#60A5FA" />
+        <div style={{ flex: 1, maxWidth: '600px', backgroundColor: isAsistente ? '#064E3B' : '#1E3A8A', borderRadius: '8px', padding: '10px 20px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <FaSearch color={isAsistente ? '#34D399' : '#60A5FA'} />
           <input 
             type="text" 
             placeholder="Buscar caso o nodo..." 
@@ -212,14 +224,14 @@ export default function Board() {
         </div>
         
         <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-          <div style={{ backgroundColor: '#EF4444', color: 'white', padding: '8px 15px', borderRadius: '6px', fontWeight: 'bold', fontSize: '14px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <div className="timer-clock-badge" style={{ backgroundColor: '#EF4444', color: 'white', padding: '8px 15px', borderRadius: '6px', fontWeight: 'bold', fontSize: '14px', display: 'flex', alignItems: 'center', gap: '8px' }}>
             <div style={{ width: '8px', height: '8px', backgroundColor: 'white', borderRadius: '50%' }}></div>
             {formatTime(timeLeft)}
           </div>
           <button 
-            onClick={() => navigate('/inicio')}
+            onClick={() => navigate(homeRoute)}
             disabled={simulationEnded}
-            style={{ backgroundColor: simulationEnded ? '#334155' : '#2563EB', color: simulationEnded ? '#94A3B8' : 'white', border: 'none', padding: '8px 20px', borderRadius: '6px', cursor: simulationEnded ? 'not-allowed' : 'pointer', fontWeight: 'bold' }}
+            style={{ backgroundColor: simulationEnded ? '#334155' : (isAsistente ? '#059669' : '#2563EB'), color: simulationEnded ? '#94A3B8' : 'white', border: 'none', padding: '8px 20px', borderRadius: '6px', cursor: simulationEnded ? 'not-allowed' : 'pointer', fontWeight: 'bold' }}
           >
             Volver
           </button>
@@ -241,7 +253,9 @@ export default function Board() {
           {/* Background Image Setup */}
           <div style={{ 
             position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, 
-            backgroundImage: "url('/assets/tablero-analitico.png')", 
+            backgroundImage: isAsistente
+              ? "url('/assets/tablero-asistente.jpg'), url('/assets/tablero-analitico.png')"
+              : "url('/assets/tablero-analitico.png')", 
             backgroundSize: 'cover', 
             backgroundPosition: 'center', 
             opacity: 0.5, 
@@ -316,17 +330,17 @@ export default function Board() {
               exit={{ scale: 0.9, opacity: 0 }}
               style={{ backgroundColor: '#1E293B', padding: '30px', borderRadius: '12px', width: '450px', border: '2px solid #3B82F6', color: 'white', textAlign: 'center' }}
             >
-              <h2 style={{ color: '#60A5FA', marginTop: 0 }}>Integrantes del Grupo</h2>
+              <h2 style={{ color: '#60A5FA', marginTop: 0 }}>Integrantes del Equipo</h2>
               <p style={{ fontSize: '14px', margin: '10px 0 20px', opacity: 0.8 }}>
-                Por favor ingresa los nombres de los 3 integrantes para generar el informe.
+                Confirma los integrantes del equipo para generar el informe PDF.
               </p>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '15px', marginBottom: '25px' }}>
-                {[0, 1, 2].map(i => (
+                {memberNames.map((name, i) => (
                   <input 
                     key={i}
                     type="text"
                     placeholder={`Nombre del integrante ${i + 1}`}
-                    value={memberNames[i]}
+                    value={name}
                     onChange={(e) => {
                       const newNames = [...memberNames];
                       newNames[i] = e.target.value;

@@ -1,29 +1,61 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FaSignInAlt, FaBookOpen, FaPowerOff, FaUsers } from 'react-icons/fa';
+import { FaSignInAlt, FaBookOpen, FaPowerOff, FaUserShield, FaLock, FaUser } from 'react-icons/fa';
+import axios from 'axios';
+import { useGlobal } from '../context/GlobalContext';
 
 export default function Login() {
   const navigate = useNavigate();
+  const { loginUser } = useGlobal();
   const [showModal, setShowModal] = useState(false);
-  const [member1, setMember1] = useState('');
-  const [member2, setMember2] = useState('');
-  const [member3, setMember3] = useState('');
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [authError, setAuthError] = useState('');
+  const [submitting, setSubmitting] = useState(false);
 
   const handleStart = () => {
+    setAuthError('');
     setShowModal(true);
   };
 
-  const handleLogin = (e) => {
+  const handleLogin = async (e) => {
     e.preventDefault();
-    if (member1.trim() && member2.trim() && member3.trim()) {
-      const team = `${member1}, ${member2}, ${member3}`;
-      localStorage.setItem('nexus_user', team);
-      // Start global timer
-      localStorage.setItem('nexus_timer_start', Date.now().toString());
-      navigate('/inicio');
-    } else {
-      alert("Por favor ingrese los nombres de los 3 miembros del grupo.");
+    setAuthError('');
+
+    if (!username.trim() || !password.trim()) {
+      setAuthError('Por favor ingrese su usuario y contraseña.');
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      const response = await axios.post('http://localhost:8080/api/auth/login', {
+        username: username.trim(),
+        password: password
+      });
+
+      const userData = response.data;
+      loginUser(userData);
+
+      if (userData.rol === 'ADMIN') {
+        navigate('/admin');
+      } else if (userData.rol === 'ASISTENTE') {
+        localStorage.setItem('nexus_timer_start', Date.now().toString());
+        navigate('/inicio-asistente');
+      } else {
+        // FISCAL
+        localStorage.setItem('nexus_timer_start', Date.now().toString());
+        navigate('/inicio');
+      }
+    } catch (err) {
+      if (err.response && err.response.data && err.response.data.message) {
+        setAuthError(err.response.data.message);
+      } else {
+        setAuthError('No se pudo conectar con el servidor de autenticación (puerto 8080).');
+      }
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -40,10 +72,10 @@ export default function Login() {
       position: 'relative'
     }}>
       
-      <div style={{ maxWidth: '400px', color: 'white', zIndex: 10 }}>
+      <div style={{ maxWidth: '420px', color: 'white', zIndex: 10 }}>
         {/* Top logo area */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '20px' }}>
-          <div style={{ backgroundColor: '#F59E0B', color: 'black', padding: '5px 8px', fontWeight: 'bold', borderRadius: '4px', fontSize: '14px' }}>PGN</div>
+          <div style={{ backgroundColor: '#F59E0B', color: 'black', padding: '5px 8px', fontWeight: 'bold', borderRadius: '4px', fontSize: '14px' }}>FGN</div>
           <div>
             <div style={{ fontWeight: 'bold', fontSize: '14px' }}>NEXUS DAE</div>
             <div style={{ fontSize: '10px' }}>FISCALÍA GENERAL DE LA NACIÓN</div>
@@ -64,7 +96,7 @@ export default function Login() {
           backdropFilter: 'blur(5px)'
         }}>
           <div style={{ width: '8px', height: '8px', backgroundColor: '#10B981', borderRadius: '50%' }}></div>
-          Sistema activo
+          Sistema activo · Fiscales y Asistentes
         </div>
 
         {/* Titles */}
@@ -76,7 +108,7 @@ export default function Login() {
           <span style={{ color: '#F59E0B' }}>Fiscal</span>
         </h1>
         <p style={{ fontSize: '14px', marginBottom: '40px', opacity: 0.9, lineHeight: '1.5' }}>
-          Acceso para fiscales autorizados. Asuma el rol de Fiscal Delegado y tome decisiones reales.
+          Acceso autorizado para Fiscales Delegados, Asistentes Judiciales y Administración de Equipos.
         </p>
 
         {/* Buttons */}
@@ -102,7 +134,7 @@ export default function Login() {
             <FaSignInAlt size={24} color="rgba(0,0,0,0.5)" />
             <div>
               <div style={{ fontWeight: 'bold', fontSize: '16px' }}>Ingresar a NEXUS</div>
-              <div style={{ fontSize: '12px', opacity: 0.8 }}>Iniciar despacho fiscal</div>
+              <div style={{ fontSize: '12px', opacity: 0.8 }}>Iniciar sesión por rol (Fiscal / Asistente / Admin)</div>
             </div>
           </button>
 
@@ -157,7 +189,7 @@ export default function Login() {
         </div>
       </div>
 
-      {/* MODAL FOR 3 MEMBERS */}
+      {/* MODAL DE AUTENTICACIÓN POR ROL */}
       <AnimatePresence>
         {showModal && (
           <motion.div 
@@ -180,58 +212,85 @@ export default function Login() {
               exit={{ scale: 0.9, y: 50 }}
               style={{
                 backgroundColor: '#1E293B',
-                padding: '40px',
+                padding: '36px',
                 borderRadius: '16px',
                 width: '100%',
-                maxWidth: '450px',
+                maxWidth: '440px',
                 border: '1px solid #334155',
-                boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)'
+                boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.6)'
               }}
             >
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-                <h2 style={{ margin: 0, color: 'white', display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  <FaUsers color="#F59E0B" /> Registro de Grupo
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                <h2 style={{ margin: 0, color: 'white', display: 'flex', alignItems: 'center', gap: '10px', fontSize: '20px' }}>
+                  <FaUserShield color="#F59E0B" /> Acceso NEXUS DAE
                 </h2>
                 <button onClick={() => setShowModal(false)} style={{ background: 'none', border: 'none', color: '#94A3B8', fontSize: '20px', cursor: 'pointer' }}>✖</button>
               </div>
 
-              <p style={{ color: '#94A3B8', marginBottom: '20px', fontSize: '14px' }}>Ingrese los nombres de los tres investigadores asignados a este despacho.</p>
+              <p style={{ color: '#94A3B8', marginBottom: '20px', fontSize: '13px', lineHeight: '1.5' }}>
+                Ingrese sus credenciales asignadas. El sistema identificará automáticamente su rol (<strong>Fiscal</strong>, <strong>Asistente</strong> o <strong>Administrador</strong>) y cargará su equipo de trabajo.
+              </p>
+
+              {authError && (
+                <div style={{
+                  backgroundColor: 'rgba(239, 68, 68, 0.15)',
+                  border: '1px solid #EF4444',
+                  color: '#FCA5A5',
+                  padding: '10px 14px',
+                  borderRadius: '8px',
+                  fontSize: '13px',
+                  marginBottom: '15px'
+                }}>
+                  {authError}
+                </div>
+              )}
 
               <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-                <input 
-                  type="text" 
-                  placeholder="Investigador 1" 
-                  value={member1} onChange={(e) => setMember1(e.target.value)}
-                  style={{ padding: '12px', borderRadius: '8px', border: '1px solid #334155', backgroundColor: '#0F172A', color: 'white', outline: 'none' }}
-                  required
-                />
-                <input 
-                  type="text" 
-                  placeholder="Investigador 2" 
-                  value={member2} onChange={(e) => setMember2(e.target.value)}
-                  style={{ padding: '12px', borderRadius: '8px', border: '1px solid #334155', backgroundColor: '#0F172A', color: 'white', outline: 'none' }}
-                  required
-                />
-                <input 
-                  type="text" 
-                  placeholder="Investigador 3" 
-                  value={member3} onChange={(e) => setMember3(e.target.value)}
-                  style={{ padding: '12px', borderRadius: '8px', border: '1px solid #334155', backgroundColor: '#0F172A', color: 'white', outline: 'none' }}
-                  required
-                />
+                <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                  <FaUser color="#64748B" style={{ position: 'absolute', left: '14px' }} />
+                  <input 
+                    type="text" 
+                    placeholder="Usuario (ej. fiscal1, asistente1, admin)" 
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
+                    style={{ width: '100%', padding: '12px 12px 12px 40px', borderRadius: '8px', border: '1px solid #334155', backgroundColor: '#0F172A', color: 'white', outline: 'none' }}
+                    required
+                  />
+                </div>
+
+                <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                  <FaLock color="#64748B" style={{ position: 'absolute', left: '14px' }} />
+                  <input 
+                    type="password" 
+                    placeholder="Contraseña" 
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    style={{ width: '100%', padding: '12px 12px 12px 40px', borderRadius: '8px', border: '1px solid #334155', backgroundColor: '#0F172A', color: 'white', outline: 'none' }}
+                    required
+                  />
+                </div>
                 
                 <button 
                   type="submit" 
+                  disabled={submitting}
                   style={{ 
-                    marginTop: '10px', padding: '15px', backgroundColor: '#FDE047', color: 'black', 
-                    fontWeight: 'bold', border: 'none', borderRadius: '8px', cursor: 'pointer', transition: 'background-color 0.2s' 
+                    marginTop: '6px', padding: '14px', backgroundColor: '#FDE047', color: 'black', 
+                    fontWeight: 'bold', border: 'none', borderRadius: '8px', cursor: submitting ? 'wait' : 'pointer', transition: 'background-color 0.2s',
+                    opacity: submitting ? 0.7 : 1
                   }}
                   onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#FACC15'}
                   onMouseOut={(e) => e.currentTarget.style.backgroundColor = '#FDE047'}
                 >
-                  INICIAR SIMULACIÓN
+                  {submitting ? 'VERIFICANDO...' : 'INGRESAR AL SISTEMA'}
                 </button>
               </form>
+
+              <div style={{ marginTop: '20px', paddingTop: '14px', borderTop: '1px solid #334155', fontSize: '11px', color: '#64748B', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                <div style={{ color: '#94A3B8', fontWeight: 'bold' }}>Accesos iniciales por defecto:</div>
+                <div>• Admin: <code style={{ color: '#FDE047' }}>admin</code> / <code style={{ color: '#FDE047' }}>admin123</code></div>
+                <div>• Fiscal: <code style={{ color: '#38BDF8' }}>fiscal1</code> / <code style={{ color: '#38BDF8' }}>1234</code></div>
+                <div>• Asistente: <code style={{ color: '#34D399' }}>asistente1</code> / <code style={{ color: '#34D399' }}>1234</code></div>
+              </div>
             </motion.div>
           </motion.div>
         )}

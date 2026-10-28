@@ -1,8 +1,9 @@
 import { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FaArrowLeft, FaFolderOpen, FaChartBar, FaClock, FaBriefcase, FaUserGraduate } from 'react-icons/fa';
+import { FaArrowLeft, FaFolderOpen, FaChartBar, FaClock, FaBriefcase, FaUserGraduate, FaUserTie } from 'react-icons/fa';
 import { useTimer } from '../utils/useTimer';
+import { useGlobal } from '../context/GlobalContext';
 
 export default function Inicio() {
   const navigate = useNavigate();
@@ -10,11 +11,23 @@ export default function Inicio() {
   const videoRef = useRef(null);
   
   const { timeLeft, formatTime } = useTimer();
+  const { currentUser, logoutUser, casos } = useGlobal();
+
+  const equipo = currentUser?.equipo;
+  const integrantes = equipo?.integrantes || [];
+  const totalFiscales = integrantes.filter(i => i.rol === 'FISCAL').length;
+  const totalAsistentes = integrantes.filter(i => i.rol === 'ASISTENTE').length;
 
   const handleGestionesClick = () => {
-    setIsPlayingTransition(true);
     if (videoRef.current) {
-      videoRef.current.play();
+      videoRef.current.currentTime = 0;
+      videoRef.current.play().then(() => {
+        setIsPlayingTransition(true);
+      }).catch(() => {
+        setIsPlayingTransition(true);
+      });
+    } else {
+      setIsPlayingTransition(true);
     }
   };
 
@@ -23,40 +36,39 @@ export default function Inicio() {
     navigate('/cases');
   };
 
+  const handleBackToLogin = () => {
+    logoutUser();
+    navigate('/');
+  };
+
   return (
     <div className="inicio-bg" style={{ position: 'relative' }}>
       
-      {/* Video Transition Overlay */}
-      <AnimatePresence>
-        {isPlayingTransition && (
-          <motion.div 
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            style={{
-              position: 'fixed',
-              top: 0, left: 0, width: '100vw', height: '100vh',
-              backgroundColor: 'black',
-              zIndex: 9999,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center'
-            }}
-          >
-            <video 
-              ref={videoRef}
-              src="/videos/VIDEO2.mp4" 
-              autoPlay 
-              onEnded={handleVideoEnd}
-              style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-            />
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {/* Video Transition Overlay (Pre-renderizado para evitar pantalla negra) */}
+      <div
+        style={{
+          position: 'fixed',
+          top: 0, left: 0, width: '100vw', height: '100vh',
+          backgroundColor: 'transparent',
+          zIndex: 9999,
+          display: isPlayingTransition ? 'flex' : 'none',
+          alignItems: 'center',
+          justifyContent: 'center',
+          pointerEvents: isPlayingTransition ? 'auto' : 'none'
+        }}
+      >
+        <video 
+          ref={videoRef}
+          src="/videos/VIDEO2.mp4" 
+          preload="auto"
+          onEnded={handleVideoEnd}
+          style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+        />
+      </div>
 
       {/* Top Left: Volver al login */}
       <button 
-        onClick={() => navigate('/')}
+        onClick={handleBackToLogin}
         style={{
           position: 'absolute',
           top: '20px',
@@ -79,7 +91,7 @@ export default function Inicio() {
       </button>
 
       {/* Top Right: Tiempo */}
-      <div style={{
+      <div className="timer-clock-badge" style={{
         position: 'absolute',
         top: '20px',
         right: '20px',
@@ -99,7 +111,7 @@ export default function Inicio() {
         TIEMPO {formatTime(timeLeft)}
       </div>
 
-      {/* Top Center: Progress Bar (Mock) */}
+      {/* Top Center: Progress Bar */}
       <div style={{
         position: 'absolute',
         top: '25px',
@@ -114,7 +126,7 @@ export default function Inicio() {
         zIndex: 10
       }}>
         <div style={{ 
-          width: `${(timeLeft / (3 * 60 * 60 * 1000)) * 100}%`, 
+          width: `${(timeLeft / (2 * 60 * 60 * 1000)) * 100}%`, 
           height: '100%', 
           backgroundColor: '#EF4444',
           transition: 'width 1s linear'
@@ -124,7 +136,7 @@ export default function Inicio() {
       {/* Center Content */}
       <div style={{
         position: 'absolute',
-        top: '30%',
+        top: '32%',
         left: '50%',
         transform: 'translate(-50%, -50%)',
         textAlign: 'center',
@@ -134,12 +146,31 @@ export default function Inicio() {
         width: '100%',
         zIndex: 10
       }}>
+        <div style={{
+          backgroundColor: 'rgba(56, 189, 248, 0.2)',
+          border: '1px solid #38BDF8',
+          color: '#7DD3FC',
+          padding: '4px 14px',
+          borderRadius: '20px',
+          fontSize: '12px',
+          fontWeight: 'bold',
+          marginBottom: '10px',
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: '8px',
+          backdropFilter: 'blur(5px)'
+        }}>
+          <FaUserTie /> ROL ACTIVO: {currentUser?.rol || 'FISCAL'}
+          {currentUser?.nombreCompleto ? ` · ${currentUser.nombreCompleto}` : ''}
+        </div>
+
         <h1 style={{ 
           color: 'white', 
           fontSize: '2.5rem', 
           fontWeight: 'bold',
           textShadow: '0 2px 10px rgba(0,0,0,0.8)',
-          marginBottom: '20px'
+          marginBottom: '16px',
+          marginTop: 0
         }}>
           Bienvenido a tu Despacho
         </h1>
@@ -152,15 +183,18 @@ export default function Inicio() {
         </div>
 
         {/* 3 Pills */}
-        <div style={{ display: 'flex', gap: '15px', marginTop: '20px' }}>
+        <div style={{ display: 'flex', gap: '15px', marginTop: '20px', flexWrap: 'wrap', justifyContent: 'center' }}>
           <div style={{ backgroundColor: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)', padding: '5px 15px', borderRadius: '20px', display: 'flex', alignItems: 'center', gap: '5px', color: 'white', fontSize: '0.85rem', backdropFilter: 'blur(5px)' }}>
-            <FaClock color="#FBBF24" /> Jornada: 3 horas
+            <FaClock color="#FBBF24" /> Jornada: 2 horas
           </div>
           <div style={{ backgroundColor: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)', padding: '5px 15px', borderRadius: '20px', display: 'flex', alignItems: 'center', gap: '5px', color: 'white', fontSize: '0.85rem', backdropFilter: 'blur(5px)' }}>
-            <FaBriefcase color="#FBBF24" /> Casos activos: 65
+            <FaBriefcase color="#FBBF24" /> Casos activos: {casos.length || 65}
           </div>
           <div style={{ backgroundColor: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)', padding: '5px 15px', borderRadius: '20px', display: 'flex', alignItems: 'center', gap: '5px', color: 'white', fontSize: '0.85rem', backdropFilter: 'blur(5px)' }}>
-            <FaUserGraduate color="#FBBF24" /> Equipo: 1 Judicante
+            <FaUserGraduate color="#FBBF24" />{' '}
+            {equipo
+              ? `${equipo.nombre} (${totalFiscales}F / ${totalAsistentes}A)`
+              : 'Equipo: Sin asignar'}
           </div>
         </div>
       </div>
@@ -210,7 +244,7 @@ export default function Inicio() {
 
         {/* Right Button */}
         <button 
-          onClick={() => navigate('/board/demo')} // Later change to pick case
+          onClick={() => navigate('/board/demo')}
           style={{
             backgroundColor: '#FDE047',
             color: 'black',
